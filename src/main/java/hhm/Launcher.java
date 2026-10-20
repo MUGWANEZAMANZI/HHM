@@ -1,4 +1,4 @@
-package com.example.fxjava;
+package hhm;
 
 import javafx.application.Application;
 

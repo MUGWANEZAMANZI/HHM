@@ -1,6 +1,7 @@
 module com.example.fxjava {
     requires javafx.controls;
     requires javafx.fxml;
+    requires java.sql;
     requires javafx.web;
 
     requires org.controlsfx.controls;
@@ -9,6 +10,6 @@ module com.example.fxjava {
     requires org.kordamp.bootstrapfx.core;
     requires eu.hansolo.tilesfx;
 
-    opens com.example.fxjava to javafx.fxml;
-    exports com.example.fxjava;
+    opens hhm to javafx.fxml;
+    exports hhm;
 }
