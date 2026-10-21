@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17.0.12"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="controller.HomeController"
+            prefHeight="680" prefWidth="1100">
+
+    <!-- Sidebar -->
+    <left>
+        <VBox style="-fx-background-color:#1e2a3a;" prefWidth="200" spacing="4">
+            <padding><Insets top="30" left="0" right="0" bottom="20"/></padding>
+
+            <Label text="HHM System"
+                   style="-fx-text-fill:white; -fx-font-size:16px; -fx-font-weight:bold; -fx-padding:0 0 20 20;"/>
+
+            <Button text="Dashboard"       onAction="#showDashboard"   maxWidth="Infinity"
+                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
+            <Button text="Patients"        onAction="#showPatients"    maxWidth="Infinity"
+                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
+            <Button text="Doctors"         onAction="#showDoctors"     maxWidth="Infinity"
+                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
+            <Button text="Appointments"    onAction="#showAppointments" maxWidth="Infinity"
+                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
+            <Button text="Prescriptions"   onAction="#showPrescriptions" maxWidth="Infinity"
+                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
+            <Button text="Inventory"       onAction="#showInventory"   maxWidth="Infinity"
+                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
+        </VBox>
+    </left>
+
+    <!-- Main content area — swapped by HomeController -->
+    <center>
+        <StackPane fx:id="contentArea" style="-fx-background-color:#f4f6f9;">
+            <VBox alignment="CENTER" spacing="12">
+                <Label text="Welcome to Hospital Health Management"
+                       style="-fx-font-size:22px; -fx-font-weight:bold; -fx-text-fill:#1e2a3a;"/>
+                <Label text="Select a section from the sidebar to get started."
+                       style="-fx-text-fill:#666;"/>
+            </VBox>
+        </StackPane>
+    </center>
+
+</BorderPane>

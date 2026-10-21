@@ -9,7 +9,9 @@ module com.example.fxjava {
     requires net.synedra.validatorfx;
     requires org.kordamp.bootstrapfx.core;
     requires eu.hansolo.tilesfx;
+    requires java.desktop;
 
     opens hhm to javafx.fxml;
+    opens controller to javafx.fxml;
     exports hhm;
 }
