@@ -8,7 +8,9 @@ public class AppointmentView {
     private long patientId;
     private long doctorId;
     private String patientName;
+    private String patientPhone;
     private String doctorName;
+    private String departmentName;
     private LocalDateTime appointmentDate;
     private String status;
 
@@ -26,8 +28,14 @@ public class AppointmentView {
     public String getPatientName() { return patientName; }
     public void setPatientName(String patientName) { this.patientName = patientName; }
 
+    public String getPatientPhone() { return patientPhone; }
+    public void setPatientPhone(String patientPhone) { this.patientPhone = patientPhone; }
+
     public String getDoctorName() { return doctorName; }
     public void setDoctorName(String doctorName) { this.doctorName = doctorName; }
+
+    public String getDepartmentName() { return departmentName; }
+    public void setDepartmentName(String departmentName) { this.departmentName = departmentName; }
 
     public LocalDateTime getAppointmentDate() { return appointmentDate; }
     public void setAppointmentDate(LocalDateTime appointmentDate) { this.appointmentDate = appointmentDate; }

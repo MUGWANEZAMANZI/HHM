@@ -12,10 +12,12 @@ public class AppointmentDAO {
 
     private static final String SELECT_VIEW =
         "SELECT a.Id, a.patientId, a.doctorId, a.appointmentDate, a.status, " +
-        "       p.Name AS patientName, d.Name AS doctorName " +
+        "       p.Name AS patientName, p.Phone AS patientPhone, " +
+        "       d.Name AS doctorName, dept.name AS departmentName " +
         "FROM Appointments a " +
-        "INNER JOIN Patient p  ON a.patientId = p.Id " +
-        "INNER JOIN Doctors  d ON a.doctorId  = d.Id ";
+        "INNER JOIN Patient     p    ON a.patientId   = p.Id " +
+        "INNER JOIN Doctors     d    ON a.doctorId    = d.Id " +
+        "INNER JOIN Departments dept ON d.departmentId = dept.id ";
 
     public void insert(Appointment a) throws SQLException {
         String sql = "INSERT INTO Appointments (patientId, doctorId, appointmentDate, status) VALUES (?, ?, ?, ?)";
@@ -118,7 +120,9 @@ public class AppointmentDAO {
             v.setPatientId(rs.getLong("patientId"));
             v.setDoctorId(rs.getLong("doctorId"));
             v.setPatientName(rs.getString("patientName"));
+            v.setPatientPhone(rs.getString("patientPhone"));
             v.setDoctorName(rs.getString("doctorName"));
+            v.setDepartmentName(rs.getString("departmentName"));
             v.setAppointmentDate(rs.getTimestamp("appointmentDate").toLocalDateTime());
             v.setStatus(rs.getString("status"));
             list.add(v);
