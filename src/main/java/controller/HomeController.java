@@ -17,6 +17,7 @@ public class HomeController {
     @FXML void showAppointments() { load("appointment-view.fxml"); }
     @FXML void showPrescriptions(){ load("prescription-view.fxml"); }
     @FXML void showInventory()    { load("inventory-view.fxml"); }
+    @FXML void showFeedback()     { load("feedback-view.fxml"); }
 
     private void load(String fxml) {
         try {

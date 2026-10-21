@@ -29,6 +29,8 @@
                     style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
             <Button text="Inventory"       onAction="#showInventory"   maxWidth="Infinity"
                     style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
+            <Button text="Feedback"        onAction="#showFeedback"    maxWidth="Infinity"
+                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
         </VBox>
     </left>
 
