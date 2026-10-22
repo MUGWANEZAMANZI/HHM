@@ -1,6 +1,7 @@
 package dao;
 
 import model.Department;
+import util.AppCache;
 import util.DBConnection;
 
 import java.sql.*;
@@ -16,9 +17,13 @@ public class DepartmentDAO {
             stmt.setString(1, department.getName());
             stmt.executeUpdate();
         }
+        AppCache.invalidate(Department.class);
     }
 
     public List<Department> findAll() throws SQLException {
+        List<Department> cached = AppCache.getAll(Department.class);
+        if (cached != null) return cached;
+
         List<Department> list = new ArrayList<>();
         String sql = "SELECT * FROM Departments ORDER BY name";
         try (Connection conn = DBConnection.getConnection();
@@ -31,23 +36,12 @@ public class DepartmentDAO {
                 list.add(d);
             }
         }
+        AppCache.put(Department.class, list);
         return list;
     }
 
     public Department findById(long id) throws SQLException {
-        String sql = "SELECT * FROM Departments WHERE id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setLong(1, id);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                Department d = new Department();
-                d.setId(rs.getLong("id"));
-                d.setName(rs.getString("name"));
-                return d;
-            }
-        }
-        return null;
+        return findAll().stream().filter(d -> d.getId() == id).findFirst().orElse(null);
     }
 
     public void update(Department department) throws SQLException {
@@ -58,6 +52,7 @@ public class DepartmentDAO {
             stmt.setLong(2, department.getId());
             stmt.executeUpdate();
         }
+        AppCache.invalidate(Department.class);
     }
 
     public void delete(long id) throws SQLException {
@@ -67,5 +62,6 @@ public class DepartmentDAO {
             stmt.setLong(1, id);
             stmt.executeUpdate();
         }
+        AppCache.invalidate(Department.class);
     }
 }

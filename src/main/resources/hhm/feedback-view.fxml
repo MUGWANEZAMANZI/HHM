@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox spacing="14" style="-fx-background-color:#f4f6f9;"
+      xmlns="http://javafx.com/javafx/17.0.12"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="controller.FeedbackController">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+
+    <!-- Header -->
+    <HBox alignment="CENTER_LEFT" spacing="10">
+        <Label text="Patient Feedback"
+               style="-fx-font-size:20px; -fx-font-weight:bold; -fx-text-fill:#1e2a3a;"/>
+        <Label fx:id="statusLabel" style="-fx-text-fill:#e53935; -fx-font-size:12px;"/>
+    </HBox>
+
+    <!-- Form Card -->
+    <VBox spacing="10"
+          style="-fx-background-color:white; -fx-background-radius:8; -fx-effect:dropshadow(gaussian,#ccc,4,0,0,2);">
+        <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
+        <Label text="Record Feedback" style="-fx-font-weight:bold; -fx-text-fill:#444;"/>
+
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="Patient:" style="-fx-text-fill:#666;"/>
+            <ComboBox fx:id="patientCombo" promptText="Select Patient" prefWidth="260"/>
+        </HBox>
+
+        <HBox spacing="10" alignment="TOP_LEFT">
+            <Label text="Feedback:" style="-fx-text-fill:#666; -fx-padding:4 0 0 0;"/>
+            <TextArea fx:id="feedbackArea" promptText="Patient feedback or comments..."
+                      prefWidth="500" prefHeight="70" wrapText="true"/>
+        </HBox>
+
+        <HBox spacing="10" alignment="TOP_LEFT">
+            <Label text="Private Notes:" style="-fx-text-fill:#666; -fx-padding:4 0 0 0;"/>
+            <TextArea fx:id="notesArea" promptText="Internal staff notes (not shown to patient)..."
+                      prefWidth="500" prefHeight="50" wrapText="true"/>
+        </HBox>
+
+        <HBox spacing="10">
+            <Button text="Submit Feedback" onAction="#onSave"
+                    style="-fx-background-color:#1976D2; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 18;"/>
+            <Button text="Clear" onAction="#onClear"
+                    style="-fx-background-color:#90a4ae; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 18;"/>
+            <Button text="Delete Selected" onAction="#onDelete"
+                    style="-fx-background-color:#e53935; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 18;"/>
+        </HBox>
+    </VBox>
+
+    <!-- Search / Filter bar -->
+    <HBox alignment="CENTER_LEFT" spacing="10">
+        <TextField fx:id="searchField" prefWidth="300" promptText="Search by patient name..."/>
+        <Button text="Search"   onAction="#onSearch"
+                style="-fx-background-color:#1976D2; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 14;"/>
+        <Button text="Show All" onAction="#onShowAll"
+                style="-fx-background-color:#546e7a; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 14;"/>
+    </HBox>
+
+    <!-- Table -->
+    <TableView fx:id="feedbackTable" VBox.vgrow="ALWAYS"
+               style="-fx-background-color:white; -fx-background-radius:8;">
+        <columns>
+            <TableColumn fx:id="colId"       text="ID"            prefWidth="55"/>
+            <TableColumn fx:id="colPatient"  text="Patient"       prefWidth="200"/>
+            <TableColumn fx:id="colFeedback" text="Feedback"      prefWidth="340"/>
+            <TableColumn fx:id="colNotes"    text="Private Notes" prefWidth="240"/>
+            <TableColumn fx:id="colDate"     text="Date"          prefWidth="130"/>
+        </columns>
+    </TableView>
+
+</VBox>
