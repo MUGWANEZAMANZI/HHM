@@ -10,6 +10,21 @@ import java.util.List;
 
 public class PatientDAO {
 
+    public long insertAndGetId(Patient patient) throws SQLException {
+        String sql = "INSERT INTO Patient (Name, Address, Phone, email) VALUES (?, ?, ?, ?)";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setString(1, patient.getName());
+            stmt.setString(2, patient.getAddress());
+            stmt.setString(3, patient.getPhone());
+            stmt.setString(4, patient.getEmail());
+            stmt.executeUpdate();
+            ResultSet keys = stmt.getGeneratedKeys();
+            if (keys.next()) { AppCache.invalidate(Patient.class); return keys.getLong(1); }
+        }
+        throw new SQLException("No generated key returned for Patient.");
+    }
+
     public void insert(Patient patient) throws SQLException {
         String sql = "INSERT INTO Patient (Name, Address, Phone, email) VALUES (?, ?, ?, ?)";
         try (Connection conn = DBConnection.getConnection();

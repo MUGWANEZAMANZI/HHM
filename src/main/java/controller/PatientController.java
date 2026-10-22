@@ -8,14 +8,13 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import model.Patient;
 import model.PatientAddress;
-import util.DBConnection;
+import service.PatientService;
+import service.ServiceException;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class PatientController {
 
@@ -42,8 +41,9 @@ public class PatientController {
     @FXML private TableColumn<PatientRow, String> colCell;
     @FXML private TableColumn<PatientRow, String> colVillage;
 
-    private final PatientDAO patientDAO = new PatientDAO();
-    private final PatientAddressDAO addressDAO = new PatientAddressDAO();
+    private final PatientService    patientService = new PatientService();
+    private final PatientDAO        patientDAO     = new PatientDAO();
+    private final PatientAddressDAO addressDAO     = new PatientAddressDAO();
     private long selectedPatientId = -1;
 
     @FXML
@@ -59,31 +59,38 @@ public class PatientController {
     void onSave() {
         if (!validateInput()) return;
         try {
-            Patient p = new Patient(
-                nameField.getText().trim(),
-                phoneField.getText().trim(),
-                emailField.getText().trim()
-            );
-            p.setAddress(addressField.getText().trim());
-
             if (selectedPatientId == -1) {
-                long newId = insertAndGetId(p);
-                if (hasAddressDetail()) addressDAO.insert(buildAddress(newId));
+                patientService.register(
+                    nameField.getText().trim(),
+                    phoneField.getText().trim(),
+                    emailField.getText().trim(),
+                    addressField.getText().trim(),
+                    districtField.getText().trim(),
+                    sectorField.getText().trim(),
+                    cellField.getText().trim(),
+                    villageField.getText().trim()
+                );
                 setStatus("Patient saved successfully.");
             } else {
+                Patient p = new Patient(
+                    nameField.getText().trim(),
+                    phoneField.getText().trim(),
+                    emailField.getText().trim()
+                );
                 p.setId(selectedPatientId);
-                patientDAO.update(p);
-                if (hasAddressDetail()) {
-                    PatientAddress existing = addressDAO.findByPatient(selectedPatientId);
-                    if (existing == null) addressDAO.insert(buildAddress(selectedPatientId));
-                    else addressDAO.update(buildAddress(selectedPatientId));
-                }
+                p.setAddress(addressField.getText().trim());
+                patientService.update(p,
+                    districtField.getText().trim(),
+                    sectorField.getText().trim(),
+                    cellField.getText().trim(),
+                    villageField.getText().trim()
+                );
                 setStatus("Patient updated successfully.");
             }
             onClear();
             loadAll();
-        } catch (SQLException e) {
-            setStatus("Error: " + e.getMessage());
+        } catch (ServiceException e) {
+            setStatus(e.getMessage());
         }
     }
 
@@ -96,14 +103,11 @@ public class PatientController {
         confirm.showAndWait().ifPresent(btn -> {
             if (btn == ButtonType.YES) {
                 try {
-                    addressDAO.deleteByPatient(row.id);
-                    patientDAO.delete(row.id);
+                    patientService.remove(row.id);
                     onClear();
                     loadAll();
                     setStatus("Patient deleted.");
-                } catch (SQLException e) {
-                    setStatus("Error: " + e.getMessage());
-                }
+                } catch (ServiceException e) { setStatus(e.getMessage()); }
             }
         });
     }
@@ -114,17 +118,13 @@ public class PatientController {
         if (keyword.isBlank()) { loadAll(); return; }
         try {
             patientTable.setItems(FXCollections.observableArrayList(
-                toRows(patientDAO.search(keyword))));
-        } catch (SQLException e) {
+                toRows(patientService.search(keyword))));
+        } catch (ServiceException | SQLException e) {
             setStatus("Error: " + e.getMessage());
         }
     }
 
-    @FXML
-    void onShowAll() {
-        searchField.clear();
-        loadAll();
-    }
+    @FXML void onShowAll() { searchField.clear(); loadAll(); }
 
     @FXML
     void onClear() {
@@ -141,22 +141,11 @@ public class PatientController {
     // -------------------------------------------------------------------------
 
     private boolean validateInput() {
-        String name  = nameField.getText();
-        String phone = phoneField.getText();
-        String email = emailField.getText();
-
-        if (name == null || name.trim().isEmpty()) {
-            setStatus("Name is required."); return false;
-        }
-        if (phone == null || phone.trim().isEmpty()) {
-            setStatus("Phone number is required."); return false;
-        }
-        if (email == null || email.trim().isEmpty()) {
-            setStatus("Email is required."); return false;
-        }
-        if (!email.contains("@")) {
-            setStatus("Email is not valid."); return false;
-        }
+        if (nameField.getText().isBlank())  { setStatus("Name is required."); return false; }
+        if (phoneField.getText().isBlank()) { setStatus("Phone is required."); return false; }
+        String email = emailField.getText().trim();
+        if (email.isBlank())               { setStatus("Email is required."); return false; }
+        if (!email.contains("@"))          { setStatus("Email is not valid."); return false; }
         return true;
     }
 
@@ -183,10 +172,8 @@ public class PatientController {
 
     private List<PatientRow> toRows(List<Patient> patients) throws SQLException {
         List<PatientRow> rows = new ArrayList<>();
-        for (Patient p : patients) {
-            PatientAddress addr = addressDAO.findByPatient(p.getId());
-            rows.add(new PatientRow(p, addr));
-        }
+        Map<Long, PatientAddress> addressMap = addressDAO.findAll();
+        for (Patient p : patients) rows.add(new PatientRow(p, addressMap.get(p.getId())));
         return rows;
     }
 
@@ -204,40 +191,8 @@ public class PatientController {
         setStatus("Editing patient #" + row.id);
     }
 
-    private long insertAndGetId(Patient p) throws SQLException {
-        String sql = "INSERT INTO Patient (Name, Address, Phone, email) VALUES (?, ?, ?, ?)";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
-            stmt.setString(1, p.getName());
-            stmt.setString(2, p.getAddress());
-            stmt.setString(3, p.getPhone());
-            stmt.setString(4, p.getEmail());
-            stmt.executeUpdate();
-            ResultSet keys = stmt.getGeneratedKeys();
-            if (keys.next()) return keys.getLong(1);
-        }
-        throw new SQLException("Failed to retrieve generated patient ID.");
-    }
+    private void setStatus(String msg) { if (statusLabel != null) statusLabel.setText(msg); }
 
-    private boolean hasAddressDetail() {
-        return !districtField.getText().isBlank() || !sectorField.getText().isBlank()
-            || !cellField.getText().isBlank()     || !villageField.getText().isBlank();
-    }
-
-    private PatientAddress buildAddress(long patientId) {
-        return new PatientAddress(patientId,
-            districtField.getText().trim(),
-            sectorField.getText().trim(),
-            cellField.getText().trim(),
-            villageField.getText().trim());
-    }
-
-    private void setStatus(String msg) {
-        if (statusLabel != null) statusLabel.setText(msg);
-    }
-
-    // -------------------------------------------------------------------------
-    // Flat view row — joins Patient + PatientAddress for TableView display
     // -------------------------------------------------------------------------
     public static class PatientRow {
         final long id;
@@ -254,7 +209,6 @@ public class PatientController {
             cell     = a != null ? nvl(a.getCell())     : "";
             village  = a != null ? nvl(a.getVillage())  : "";
         }
-
         private static String nvl(String s) { return s != null ? s : ""; }
     }
 }

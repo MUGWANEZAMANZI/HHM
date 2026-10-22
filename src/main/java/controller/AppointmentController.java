@@ -1,6 +1,5 @@
 package controller;
 
-import dao.AppointmentDAO;
 import dao.DoctorDAO;
 import dao.PatientDAO;
 import javafx.beans.property.SimpleStringProperty;
@@ -11,6 +10,8 @@ import model.Appointment;
 import model.AppointmentView;
 import model.Doctor;
 import model.Patient;
+import service.AppointmentService;
+import service.ServiceException;
 
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -42,9 +43,9 @@ public class AppointmentController {
     @FXML private TableColumn<AppointmentView, String>    colTime;
     @FXML private TableColumn<AppointmentView, String>    colStatus;
 
-    private final AppointmentDAO appointmentDAO = new AppointmentDAO();
-    private final PatientDAO     patientDAO     = new PatientDAO();
-    private final DoctorDAO      doctorDAO      = new DoctorDAO();
+    private final AppointmentService appointmentService = new AppointmentService();
+    private final PatientDAO         patientDAO         = new PatientDAO();
+    private final DoctorDAO          doctorDAO          = new DoctorDAO();
 
     private static final List<String> STATUSES =
         List.of("Scheduled", "Completed", "Cancelled", "Rescheduled");
@@ -64,7 +65,6 @@ public class AppointmentController {
         filterStatus.setValue("All");
         setupColumns();
         loadAll();
-
         appointmentTable.getSelectionModel().selectedItemProperty().addListener(
             (obs, old, row) -> { if (row != null) populateForm(row); }
         );
@@ -73,55 +73,39 @@ public class AppointmentController {
     @FXML
     void onSave() {
         if (!validateInput()) return;
+        LocalDateTime dt = buildDateTime();
+        if (dt == null) return;
         try {
-            LocalDateTime dt = buildDateTime();
-            if (dt == null) return;
-
             Appointment a = new Appointment(
                 patientCombo.getValue().getId(),
                 doctorCombo.getValue().getId(),
-                dt,
-                statusCombo.getValue()
-            );
-
+                dt, statusCombo.getValue());
             if (selectedId == -1) {
-                appointmentDAO.insert(a);
+                appointmentService.book(a);
                 setStatus("Appointment booked successfully.");
             } else {
                 a.setId(selectedId);
-                appointmentDAO.update(a);
+                appointmentService.reschedule(a);
                 setStatus("Appointment rescheduled.");
             }
-            onClear();
-            loadAll();
-        } catch (SQLException e) {
-            setStatus("Error: " + e.getMessage());
-        }
+            onClear(); loadAll();
+        } catch (ServiceException e) { setStatus(e.getMessage()); }
     }
 
-    // Sets status to Cancelled without deleting — keeps history
     @FXML
     void onCancel() {
         AppointmentView row = appointmentTable.getSelectionModel().getSelectedItem();
         if (row == null) { setStatus("Select an appointment to cancel."); return; }
-        if ("Cancelled".equals(row.getStatus())) { setStatus("Already cancelled."); return; }
-
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
             "Cancel appointment for \"" + row.getPatientName() + "\"?",
             ButtonType.YES, ButtonType.NO);
         confirm.showAndWait().ifPresent(btn -> {
             if (btn == ButtonType.YES) {
                 try {
-                    Appointment a = new Appointment(
-                        row.getPatientId(), row.getDoctorId(),
-                        row.getAppointmentDate(), "Cancelled");
-                    a.setId(row.getId());
-                    appointmentDAO.update(a);
+                    appointmentService.cancel(row.getId());
                     loadAll();
                     setStatus("Appointment cancelled.");
-                } catch (SQLException e) {
-                    setStatus("Error: " + e.getMessage());
-                }
+                } catch (ServiceException e) { setStatus(e.getMessage()); }
             }
         });
     }
@@ -130,20 +114,16 @@ public class AppointmentController {
     void onDelete() {
         AppointmentView row = appointmentTable.getSelectionModel().getSelectedItem();
         if (row == null) { setStatus("Select an appointment to delete."); return; }
-
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
             "Permanently delete appointment #" + row.getId() + "?",
             ButtonType.YES, ButtonType.NO);
         confirm.showAndWait().ifPresent(btn -> {
             if (btn == ButtonType.YES) {
                 try {
-                    appointmentDAO.delete(row.getId());
-                    onClear();
-                    loadAll();
+                    appointmentService.remove(row.getId());
+                    onClear(); loadAll();
                     setStatus("Appointment deleted.");
-                } catch (SQLException e) {
-                    setStatus("Error: " + e.getMessage());
-                }
+                } catch (ServiceException e) { setStatus(e.getMessage()); }
             }
         });
     }
@@ -154,32 +134,21 @@ public class AppointmentController {
         String filter  = filterStatus.getValue();
         try {
             List<AppointmentView> results;
-            if (!keyword.isBlank()) {
-                results = appointmentDAO.search(keyword);
-            } else if (filter != null && !filter.equals("All")) {
-                results = appointmentDAO.findByStatus(filter);
-            } else {
-                loadAll(); return;
-            }
+            if (!keyword.isBlank())
+                results = appointmentService.search(keyword);
+            else if (filter != null && !filter.equals("All"))
+                results = appointmentService.findByStatus(filter);
+            else { loadAll(); return; }
             appointmentTable.setItems(FXCollections.observableArrayList(results));
-        } catch (SQLException e) {
-            setStatus("Error: " + e.getMessage());
-        }
+        } catch (ServiceException e) { setStatus("Error: " + e.getMessage()); }
     }
 
-    @FXML
-    void onShowAll() {
-        searchField.clear();
-        filterStatus.setValue("All");
-        loadAll();
-    }
+    @FXML void onShowAll() { searchField.clear(); filterStatus.setValue("All"); loadAll(); }
 
     @FXML
     void onClear() {
-        patientCombo.setValue(null);
-        doctorCombo.setValue(null);
-        datePicker.setValue(null);
-        timeField.clear();
+        patientCombo.setValue(null); doctorCombo.setValue(null);
+        datePicker.setValue(null); timeField.clear();
         statusCombo.setValue("Scheduled");
         selectedId = -1;
         saveBtn.setText("Book Appointment");
@@ -203,8 +172,7 @@ public class AppointmentController {
             LocalTime time = LocalTime.parse(timeField.getText().trim(), TIME_FMT);
             return LocalDateTime.of(date, time);
         } catch (DateTimeParseException e) {
-            setStatus("Invalid time format — use HH:mm (e.g. 09:30).");
-            return null;
+            setStatus("Invalid time format — use HH:mm (e.g. 09:30)."); return null;
         }
     }
 
@@ -242,19 +210,15 @@ public class AppointmentController {
         colPhone.setCellValueFactory(c      -> new SimpleStringProperty(nvl(c.getValue().getPatientPhone())));
         colDoctor.setCellValueFactory(c     -> new SimpleStringProperty(c.getValue().getDoctorName()));
         colDepartment.setCellValueFactory(c -> new SimpleStringProperty(nvl(c.getValue().getDepartmentName())));
-        colDate.setCellValueFactory(c       -> new SimpleStringProperty(
-            c.getValue().getAppointmentDate().format(DATE_FMT)));
-        colTime.setCellValueFactory(c       -> new SimpleStringProperty(
-            c.getValue().getAppointmentDate().format(TIME_FMT)));
+        colDate.setCellValueFactory(c       -> new SimpleStringProperty(c.getValue().getAppointmentDate().format(DATE_FMT)));
+        colTime.setCellValueFactory(c       -> new SimpleStringProperty(c.getValue().getAppointmentDate().format(TIME_FMT)));
         colStatus.setCellValueFactory(c     -> new SimpleStringProperty(c.getValue().getStatus()));
-
-        // Colour-code the status column
         colStatus.setCellFactory(col -> new TableCell<>() {
-            protected void updateItem(String status, boolean empty) {
-                super.updateItem(status, empty);
-                if (empty || status == null) { setText(null); setStyle(""); return; }
-                setText(status);
-                setStyle(switch (status) {
+            protected void updateItem(String s, boolean empty) {
+                super.updateItem(s, empty);
+                if (empty || s == null) { setText(null); setStyle(""); return; }
+                setText(s);
+                setStyle(switch (s) {
                     case "Cancelled"   -> "-fx-text-fill:#e53935; -fx-font-weight:bold;";
                     case "Completed"   -> "-fx-text-fill:#2e7d32; -fx-font-weight:bold;";
                     case "Rescheduled" -> "-fx-text-fill:#f57c00; -fx-font-weight:bold;";
@@ -266,26 +230,16 @@ public class AppointmentController {
 
     private void loadAll() {
         try {
-            appointmentTable.setItems(FXCollections.observableArrayList(
-                appointmentDAO.findAll()));
-        } catch (SQLException e) {
-            setStatus("Error loading appointments: " + e.getMessage());
-        }
+            appointmentTable.setItems(FXCollections.observableArrayList(appointmentService.getAll()));
+        } catch (ServiceException e) { setStatus("Error loading appointments: " + e.getMessage()); }
     }
 
     private void populateForm(AppointmentView row) {
         selectedId = row.getId();
-
-        // Match patient in combo
-        patientCombo.getItems().stream()
-            .filter(p -> p.getId() == row.getPatientId())
+        patientCombo.getItems().stream().filter(p -> p.getId() == row.getPatientId())
             .findFirst().ifPresent(patientCombo::setValue);
-
-        // Match doctor in combo
-        doctorCombo.getItems().stream()
-            .filter(d -> d.getId() == row.getDoctorId())
+        doctorCombo.getItems().stream().filter(d -> d.getId() == row.getDoctorId())
             .findFirst().ifPresent(doctorCombo::setValue);
-
         datePicker.setValue(row.getAppointmentDate().toLocalDate());
         timeField.setText(row.getAppointmentDate().format(TIME_FMT));
         statusCombo.setValue(row.getStatus());

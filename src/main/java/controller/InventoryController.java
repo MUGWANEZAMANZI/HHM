@@ -1,13 +1,12 @@
 package controller;
 
-import dao.MedicalInventoryDAO;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import model.MedicalInventory;
-
-import java.sql.SQLException;
+import service.MedicalInventoryService;
+import service.ServiceException;
 
 public class InventoryController {
 
@@ -27,7 +26,7 @@ public class InventoryController {
     @FXML private TableColumn<MedicalInventory, String>    colReorder;
     @FXML private TableColumn<MedicalInventory, String>    colStock;
 
-    private final MedicalInventoryDAO inventoryDAO = new MedicalInventoryDAO();
+    private final MedicalInventoryService inventoryService = new MedicalInventoryService();
     private long selectedId = -1;
 
     @FXML
@@ -50,19 +49,18 @@ public class InventoryController {
                 Integer.parseInt(reorderField.getText().trim())
             );
             if (selectedId == -1) {
-                inventoryDAO.insert(item);
+                inventoryService.add(item);
                 setStatus("Item added to inventory.");
             } else {
                 item.setId(selectedId);
-                inventoryDAO.update(item);
+                inventoryService.update(item);
                 setStatus("Item updated.");
             }
-            onClear();
-            loadAll();
+            onClear(); loadAll();
         } catch (NumberFormatException e) {
             setStatus("Quantity and Reorder Level must be numbers.");
-        } catch (SQLException e) {
-            setStatus("Error: " + e.getMessage());
+        } catch (ServiceException e) {
+            setStatus(e.getMessage());
         }
     }
 
@@ -75,11 +73,10 @@ public class InventoryController {
         confirm.showAndWait().ifPresent(btn -> {
             if (btn == ButtonType.YES) {
                 try {
-                    inventoryDAO.delete(row.getId());
-                    onClear();
-                    loadAll();
+                    inventoryService.remove(row.getId());
+                    onClear(); loadAll();
                     setStatus("Item deleted.");
-                } catch (SQLException e) { setStatus("Error: " + e.getMessage()); }
+                } catch (ServiceException e) { setStatus(e.getMessage()); }
             }
         });
     }
@@ -89,19 +86,18 @@ public class InventoryController {
         String keyword = searchField.getText().trim();
         if (keyword.isBlank()) { loadAll(); return; }
         try {
-            inventoryTable.setItems(FXCollections.observableArrayList(inventoryDAO.search(keyword)));
-        } catch (SQLException e) { setStatus("Error: " + e.getMessage()); }
+            inventoryTable.setItems(FXCollections.observableArrayList(inventoryService.search(keyword)));
+        } catch (ServiceException e) { setStatus("Error: " + e.getMessage()); }
     }
 
-    @FXML
-    void onShowAll() { searchField.clear(); loadAll(); }
+    @FXML void onShowAll() { searchField.clear(); loadAll(); }
 
     @FXML
     void onLowStock() {
         try {
-            inventoryTable.setItems(FXCollections.observableArrayList(inventoryDAO.findLowStock()));
+            inventoryTable.setItems(FXCollections.observableArrayList(inventoryService.getLowStock()));
             setStatus("Showing items at or below reorder level.");
-        } catch (SQLException e) { setStatus("Error: " + e.getMessage()); }
+        } catch (ServiceException e) { setStatus("Error: " + e.getMessage()); }
     }
 
     @FXML
@@ -135,11 +131,9 @@ public class InventoryController {
         colReorder.setCellValueFactory(c -> new SimpleStringProperty(String.valueOf(c.getValue().getReorderLevel())));
         colStock.setCellValueFactory(c   -> {
             MedicalInventory item = c.getValue();
-            String label = item.getQuantityOnHand() <= item.getReorderLevel() ? "LOW STOCK" : "OK";
-            return new SimpleStringProperty(label);
+            return new SimpleStringProperty(
+                item.getQuantityOnHand() <= item.getReorderLevel() ? "LOW STOCK" : "OK");
         });
-
-        // Colour-code stock status
         colStock.setCellFactory(col -> new TableCell<>() {
             protected void updateItem(String s, boolean empty) {
                 super.updateItem(s, empty);
@@ -154,8 +148,8 @@ public class InventoryController {
 
     private void loadAll() {
         try {
-            inventoryTable.setItems(FXCollections.observableArrayList(inventoryDAO.findAll()));
-        } catch (SQLException e) { setStatus("Error loading inventory: " + e.getMessage()); }
+            inventoryTable.setItems(FXCollections.observableArrayList(inventoryService.getAll()));
+        } catch (ServiceException e) { setStatus("Error loading inventory: " + e.getMessage()); }
     }
 
     private void populateForm(MedicalInventory item) {

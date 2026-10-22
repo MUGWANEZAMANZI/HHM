@@ -2,7 +2,6 @@ package controller;
 
 import dao.DoctorDAO;
 import dao.PatientDAO;
-import dao.PrescriptionDAO;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -10,9 +9,10 @@ import javafx.scene.control.*;
 import model.Doctor;
 import model.Patient;
 import model.Prescription;
+import service.PrescriptionService;
+import service.ServiceException;
 
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -38,9 +38,9 @@ public class PrescriptionController {
     @FXML private TableColumn<Prescription, String>    colStatus;
     @FXML private TableColumn<Prescription, String>    colNotes;
 
-    private final PrescriptionDAO prescriptionDAO = new PrescriptionDAO();
-    private final PatientDAO      patientDAO      = new PatientDAO();
-    private final DoctorDAO       doctorDAO       = new DoctorDAO();
+    private final PrescriptionService prescriptionService = new PrescriptionService();
+    private final PatientDAO          patientDAO          = new PatientDAO();
+    private final DoctorDAO           doctorDAO           = new DoctorDAO();
 
     private static final List<String> STATUSES = List.of("Active", "Completed", "Cancelled");
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -60,7 +60,6 @@ public class PrescriptionController {
         filterStatus.setValue("All");
         setupColumns();
         loadAll();
-
         prescriptionTable.getSelectionModel().selectedItemProperty().addListener(
             (obs, old, row) -> { if (row != null) populateForm(row); }
         );
@@ -74,23 +73,19 @@ public class PrescriptionController {
             Prescription p = new Prescription(
                 patientCombo.getValue().getId(),
                 doctorCombo.getValue().getId(),
-                issuedAt,
-                statusCombo.getValue(),
+                issuedAt, statusCombo.getValue(),
                 notesArea.getText().trim()
             );
             if (selectedId == -1) {
-                prescriptionDAO.insert(p);
+                prescriptionService.issue(p);
                 setStatus("Prescription issued.");
             } else {
                 p.setId(selectedId);
-                prescriptionDAO.update(p);
+                prescriptionService.update(p);
                 setStatus("Prescription updated.");
             }
-            onClear();
-            loadAll();
-        } catch (SQLException e) {
-            setStatus("Error: " + e.getMessage());
-        }
+            onClear(); loadAll();
+        } catch (ServiceException e) { setStatus(e.getMessage()); }
     }
 
     @FXML
@@ -102,11 +97,10 @@ public class PrescriptionController {
         confirm.showAndWait().ifPresent(btn -> {
             if (btn == ButtonType.YES) {
                 try {
-                    prescriptionDAO.delete(row.getId());
-                    onClear();
-                    loadAll();
+                    prescriptionService.remove(row.getId());
+                    onClear(); loadAll();
                     setStatus("Prescription deleted.");
-                } catch (SQLException e) { setStatus("Error: " + e.getMessage()); }
+                } catch (ServiceException e) { setStatus(e.getMessage()); }
             }
         });
     }
@@ -118,33 +112,25 @@ public class PrescriptionController {
         try {
             List<Prescription> results;
             if (!keyword.isBlank()) {
-                // search by patient or doctor id via name lookup
-                results = prescriptionDAO.findAll().stream()
-                    .filter(p -> patientNameFor(p.getPatientId()).toLowerCase()
-                                   .contains(keyword.toLowerCase())
-                              || doctorNameFor(p.getDoctorId()).toLowerCase()
-                                   .contains(keyword.toLowerCase()))
+                results = prescriptionService.getAll().stream()
+                    .filter(p -> patientNameFor(p.getPatientId()).toLowerCase().contains(keyword.toLowerCase())
+                              || doctorNameFor(p.getDoctorId()).toLowerCase().contains(keyword.toLowerCase()))
                     .toList();
             } else if (filter != null && !filter.equals("All")) {
-                results = prescriptionDAO.findAll().stream()
+                results = prescriptionService.getAll().stream()
                     .filter(p -> filter.equals(p.getStatus())).toList();
-            } else {
-                loadAll(); return;
-            }
+            } else { loadAll(); return; }
             prescriptionTable.setItems(FXCollections.observableArrayList(results));
-        } catch (SQLException e) { setStatus("Error: " + e.getMessage()); }
+        } catch (ServiceException e) { setStatus("Error: " + e.getMessage()); }
     }
 
     @FXML void onShowAll() { searchField.clear(); filterStatus.setValue("All"); loadAll(); }
 
     @FXML
     void onClear() {
-        patientCombo.setValue(null);
-        doctorCombo.setValue(null);
-        datePicker.setValue(null);
-        statusCombo.setValue("Active");
-        notesArea.clear();
-        selectedId = -1;
+        patientCombo.setValue(null); doctorCombo.setValue(null);
+        datePicker.setValue(null); statusCombo.setValue("Active");
+        notesArea.clear(); selectedId = -1;
         saveBtn.setText("Issue Prescription");
         statusLabel.setText("");
         prescriptionTable.getSelectionModel().clearSelection();
@@ -165,8 +151,7 @@ public class PrescriptionController {
             patientCombo.setItems(FXCollections.observableArrayList(patients));
             patientCombo.setCellFactory(lv -> new ListCell<>() {
                 protected void updateItem(Patient p, boolean empty) {
-                    super.updateItem(p, empty);
-                    setText(empty || p == null ? "" : p.getName());
+                    super.updateItem(p, empty); setText(empty || p == null ? "" : p.getName());
                 }
             });
             patientCombo.setButtonCell(patientCombo.getCellFactory().call(null));
@@ -179,8 +164,7 @@ public class PrescriptionController {
             doctorCombo.setItems(FXCollections.observableArrayList(doctors));
             doctorCombo.setCellFactory(lv -> new ListCell<>() {
                 protected void updateItem(Doctor d, boolean empty) {
-                    super.updateItem(d, empty);
-                    setText(empty || d == null ? "" : d.getName());
+                    super.updateItem(d, empty); setText(empty || d == null ? "" : d.getName());
                 }
             });
             doctorCombo.setButtonCell(doctorCombo.getCellFactory().call(null));
@@ -200,9 +184,9 @@ public class PrescriptionController {
                 if (empty || s == null) { setText(null); setStyle(""); return; }
                 setText(s);
                 setStyle(switch (s) {
-                    case "Cancelled"  -> "-fx-text-fill:#e53935; -fx-font-weight:bold;";
-                    case "Completed"  -> "-fx-text-fill:#2e7d32; -fx-font-weight:bold;";
-                    default           -> "-fx-text-fill:#1976D2; -fx-font-weight:bold;";
+                    case "Cancelled" -> "-fx-text-fill:#e53935; -fx-font-weight:bold;";
+                    case "Completed" -> "-fx-text-fill:#2e7d32; -fx-font-weight:bold;";
+                    default          -> "-fx-text-fill:#1976D2; -fx-font-weight:bold;";
                 });
             }
         });
@@ -210,8 +194,8 @@ public class PrescriptionController {
 
     private void loadAll() {
         try {
-            prescriptionTable.setItems(FXCollections.observableArrayList(prescriptionDAO.findAll()));
-        } catch (SQLException e) { setStatus("Error loading prescriptions: " + e.getMessage()); }
+            prescriptionTable.setItems(FXCollections.observableArrayList(prescriptionService.getAll()));
+        } catch (ServiceException e) { setStatus("Error loading prescriptions: " + e.getMessage()); }
     }
 
     private void populateForm(Prescription p) {

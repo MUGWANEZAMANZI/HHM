@@ -1,13 +1,14 @@
 package controller;
 
 import dao.PatientDAO;
-import dao.PatientFeedbackDAO;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import model.Patient;
 import model.PatientFeedback;
+import service.PatientFeedbackService;
+import service.ServiceException;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -29,11 +30,10 @@ public class FeedbackController {
     @FXML private TableColumn<PatientFeedback, String>    colNotes;
     @FXML private TableColumn<PatientFeedback, String>    colDate;
 
-    private final PatientFeedbackDAO feedbackDAO = new PatientFeedbackDAO();
-    private final PatientDAO         patientDAO  = new PatientDAO();
+    private final PatientFeedbackService feedbackService = new PatientFeedbackService();
+    private final PatientDAO             patientDAO      = new PatientDAO();
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-
     private List<Patient> patients;
 
     @FXML
@@ -41,7 +41,6 @@ public class FeedbackController {
         loadPatientCombo();
         setupColumns();
         loadAll();
-
         feedbackTable.getSelectionModel().selectedItemProperty().addListener(
             (obs, old, row) -> { if (row != null) populateForm(row); }
         );
@@ -49,7 +48,7 @@ public class FeedbackController {
 
     @FXML
     void onSave() {
-        if (!validateInput()) return;
+        if (patientCombo.getValue() == null) { setStatus("Select a patient."); return; }
         try {
             PatientFeedback fb = new PatientFeedback(
                 patientCombo.getValue().getId(),
@@ -57,13 +56,10 @@ public class FeedbackController {
                 notesArea.getText().trim().isEmpty() ? null : notesArea.getText().trim(),
                 LocalDateTime.now()
             );
-            feedbackDAO.insert(fb);
+            feedbackService.submit(fb);
             setStatus("Feedback submitted.");
-            onClear();
-            loadAll();
-        } catch (SQLException e) {
-            setStatus("Error: " + e.getMessage());
-        }
+            onClear(); loadAll();
+        } catch (ServiceException e) { setStatus(e.getMessage()); }
     }
 
     @FXML
@@ -75,11 +71,10 @@ public class FeedbackController {
         confirm.showAndWait().ifPresent(btn -> {
             if (btn == ButtonType.YES) {
                 try {
-                    feedbackDAO.delete(row.getId());
-                    onClear();
-                    loadAll();
+                    feedbackService.remove(row.getId());
+                    onClear(); loadAll();
                     setStatus("Feedback deleted.");
-                } catch (SQLException e) { setStatus("Error: " + e.getMessage()); }
+                } catch (ServiceException e) { setStatus(e.getMessage()); }
             }
         });
     }
@@ -89,35 +84,23 @@ public class FeedbackController {
         String keyword = searchField.getText().trim();
         if (keyword.isBlank()) { loadAll(); return; }
         try {
-            List<PatientFeedback> results = feedbackDAO.findAll().stream()
-                .filter(fb -> patientNameFor(fb.getPatientId()).toLowerCase()
-                                .contains(keyword.toLowerCase()))
-                .toList();
+            List<PatientFeedback> results = feedbackService.search(keyword);
             feedbackTable.setItems(FXCollections.observableArrayList(results));
             setStatus("Found " + results.size() + " result(s).");
-        } catch (SQLException e) { setStatus("Error: " + e.getMessage()); }
+        } catch (ServiceException e) { setStatus("Error: " + e.getMessage()); }
     }
 
-    @FXML
-    void onShowAll() { searchField.clear(); loadAll(); statusLabel.setText(""); }
+    @FXML void onShowAll() { searchField.clear(); loadAll(); statusLabel.setText(""); }
 
     @FXML
     void onClear() {
         patientCombo.setValue(null);
-        feedbackArea.clear();
-        notesArea.clear();
-        searchField.clear();
+        feedbackArea.clear(); notesArea.clear(); searchField.clear();
         statusLabel.setText("");
         feedbackTable.getSelectionModel().clearSelection();
     }
 
     // -------------------------------------------------------------------------
-
-    private boolean validateInput() {
-        if (patientCombo.getValue() == null) { setStatus("Select a patient."); return false; }
-        if (feedbackArea.getText().isBlank()) { setStatus("Feedback text is required."); return false; }
-        return true;
-    }
 
     private void loadPatientCombo() {
         try {
@@ -125,8 +108,7 @@ public class FeedbackController {
             patientCombo.setItems(FXCollections.observableArrayList(patients));
             patientCombo.setCellFactory(lv -> new ListCell<>() {
                 protected void updateItem(Patient p, boolean empty) {
-                    super.updateItem(p, empty);
-                    setText(empty || p == null ? "" : p.getName());
+                    super.updateItem(p, empty); setText(empty || p == null ? "" : p.getName());
                 }
             });
             patientCombo.setButtonCell(patientCombo.getCellFactory().call(null));
@@ -143,8 +125,8 @@ public class FeedbackController {
 
     private void loadAll() {
         try {
-            feedbackTable.setItems(FXCollections.observableArrayList(feedbackDAO.findAll()));
-        } catch (SQLException e) { setStatus("Error loading feedback: " + e.getMessage()); }
+            feedbackTable.setItems(FXCollections.observableArrayList(feedbackService.getAll()));
+        } catch (ServiceException e) { setStatus("Error loading feedback: " + e.getMessage()); }
     }
 
     private void populateForm(PatientFeedback fb) {

@@ -14,4 +14,5 @@ module com.example.fxjava {
     opens hhm to javafx.fxml;
     opens controller to javafx.fxml;
     exports hhm;
+    exports service;
 }
