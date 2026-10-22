@@ -1,6 +1,7 @@
 package dao;
 
 import model.MedicalInventory;
+import util.AppCache;
 import util.DBConnection;
 
 import java.sql.*;
@@ -19,9 +20,13 @@ public class MedicalInventoryDAO {
             stmt.setInt(4, item.getReorderLevel());
             stmt.executeUpdate();
         }
+        AppCache.invalidate(MedicalInventory.class);
     }
 
     public List<MedicalInventory> findAll() throws SQLException {
+        List<MedicalInventory> cached = AppCache.getAll(MedicalInventory.class);
+        if (cached != null) return cached;
+
         List<MedicalInventory> list = new ArrayList<>();
         String sql = "SELECT * FROM MedicalInventory ORDER BY name";
         try (Connection conn = DBConnection.getConnection();
@@ -29,44 +34,26 @@ public class MedicalInventoryDAO {
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) list.add(mapRow(rs));
         }
+        AppCache.put(MedicalInventory.class, list);
         return list;
     }
 
     public MedicalInventory findById(long id) throws SQLException {
-        String sql = "SELECT * FROM MedicalInventory WHERE Id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setLong(1, id);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) return mapRow(rs);
-        }
-        return null;
+        return findAll().stream().filter(m -> m.getId() == id).findFirst().orElse(null);
     }
 
-    // Items that have fallen below reorder level
     public List<MedicalInventory> findLowStock() throws SQLException {
-        List<MedicalInventory> list = new ArrayList<>();
-        String sql = "SELECT * FROM MedicalInventory WHERE quantityOnHand <= reorderLevel ORDER BY name";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) list.add(mapRow(rs));
-        }
-        return list;
+        return findAll().stream()
+            .filter(m -> m.getQuantityOnHand() <= m.getReorderLevel())
+            .toList();
     }
 
     public List<MedicalInventory> search(String keyword) throws SQLException {
-        List<MedicalInventory> list = new ArrayList<>();
-        String sql = "SELECT * FROM MedicalInventory WHERE name LIKE ? OR sku LIKE ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            String term = "%" + keyword + "%";
-            stmt.setString(1, term);
-            stmt.setString(2, term);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) list.add(mapRow(rs));
-        }
-        return list;
+        String lower = keyword.toLowerCase();
+        return findAll().stream()
+            .filter(m -> m.getName().toLowerCase().contains(lower)
+                      || m.getSku().toLowerCase().contains(lower))
+            .toList();
     }
 
     public void update(MedicalInventory item) throws SQLException {
@@ -80,6 +67,7 @@ public class MedicalInventoryDAO {
             stmt.setLong(5, item.getId());
             stmt.executeUpdate();
         }
+        AppCache.invalidate(MedicalInventory.class);
     }
 
     public void delete(long id) throws SQLException {
@@ -89,6 +77,7 @@ public class MedicalInventoryDAO {
             stmt.setLong(1, id);
             stmt.executeUpdate();
         }
+        AppCache.invalidate(MedicalInventory.class);
     }
 
     private MedicalInventory mapRow(ResultSet rs) throws SQLException {

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox spacing="14" xmlns="http://javafx.com/javafx/17.0.12"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="controller.PatientController"
+      style="-fx-background-color:#f4f6f9;">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+
+    <!-- Header -->
+    <HBox alignment="CENTER_LEFT" spacing="10">
+        <Label text="Patient Management"
+               style="-fx-font-size:20px; -fx-font-weight:bold; -fx-text-fill:#1e2a3a;"/>
+        <Label fx:id="statusLabel" style="-fx-text-fill:#e53935; -fx-font-size:12px;"/>
+    </HBox>
+
+    <!-- Card: Form -->
+    <VBox style="-fx-background-color:white; -fx-background-radius:8; -fx-effect:dropshadow(gaussian,#ccc,4,0,0,2);" spacing="10">
+        <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
+        <Label text="Patient Details" style="-fx-font-weight:bold; -fx-text-fill:#444;"/>
+
+        <HBox spacing="10">
+            <TextField fx:id="nameField"    promptText="Full Name"  prefWidth="180"/>
+            <TextField fx:id="phoneField"   promptText="Phone"      prefWidth="140"/>
+            <TextField fx:id="emailField"   promptText="Email"      prefWidth="200"/>
+            <TextField fx:id="addressField" promptText="Address"    prefWidth="160"/>
+        </HBox>
+
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <Label text="Address Detail:" style="-fx-text-fill:#666; -fx-font-size:12px;"/>
+            <TextField fx:id="districtField" promptText="District" prefWidth="120"/>
+            <TextField fx:id="sectorField"   promptText="Sector"   prefWidth="120"/>
+            <TextField fx:id="cellField"     promptText="Cell"     prefWidth="120"/>
+            <TextField fx:id="villageField"  promptText="Village"  prefWidth="120"/>
+        </HBox>
+
+        <HBox spacing="10">
+            <Button fx:id="saveBtn" text="Save Patient" onAction="#onSave"
+                    style="-fx-background-color:#1976D2; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 18;"/>
+            <Button text="Clear" onAction="#onClear"
+                    style="-fx-background-color:#90a4ae; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 18;"/>
+            <Button text="Delete Selected" onAction="#onDelete"
+                    style="-fx-background-color:#e53935; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 18;"/>
+        </HBox>
+    </VBox>
+
+    <!-- Search bar -->
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <TextField fx:id="searchField" promptText="Search by name or email..." prefWidth="300"/>
+        <Button text="Search"   onAction="#onSearch"
+                style="-fx-background-color:#1976D2; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 14;"/>
+        <Button text="Show All" onAction="#onShowAll"
+                style="-fx-background-color:#546e7a; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 14;"/>
+    </HBox>
+
+    <!-- Table -->
+    <TableView fx:id="patientTable" VBox.vgrow="ALWAYS"
+               style="-fx-background-color:white; -fx-background-radius:8;">
+        <columns>
+            <TableColumn fx:id="colId"       text="ID"       prefWidth="55"/>
+            <TableColumn fx:id="colName"     text="Name"     prefWidth="170"/>
+            <TableColumn fx:id="colPhone"    text="Phone"    prefWidth="130"/>
+            <TableColumn fx:id="colEmail"    text="Email"    prefWidth="190"/>
+            <TableColumn fx:id="colAddress"  text="Address"  prefWidth="160"/>
+            <TableColumn fx:id="colDistrict" text="District" prefWidth="100"/>
+            <TableColumn fx:id="colSector"   text="Sector"   prefWidth="100"/>
+            <TableColumn fx:id="colCell"     text="Cell"     prefWidth="90"/>
+            <TableColumn fx:id="colVillage"  text="Village"  prefWidth="90"/>
+        </columns>
+    </TableView>
+
+</VBox>

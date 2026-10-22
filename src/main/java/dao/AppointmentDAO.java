@@ -2,6 +2,7 @@ package dao;
 
 import model.Appointment;
 import model.AppointmentView;
+import util.AppCache;
 import util.DBConnection;
 
 import java.sql.*;
@@ -12,10 +13,12 @@ public class AppointmentDAO {
 
     private static final String SELECT_VIEW =
         "SELECT a.Id, a.patientId, a.doctorId, a.appointmentDate, a.status, " +
-        "       p.Name AS patientName, d.Name AS doctorName " +
+        "       p.Name AS patientName, p.Phone AS patientPhone, " +
+        "       d.Name AS doctorName, dept.name AS departmentName " +
         "FROM Appointments a " +
-        "INNER JOIN Patient p  ON a.patientId = p.Id " +
-        "INNER JOIN Doctors  d ON a.doctorId  = d.Id ";
+        "INNER JOIN Patient     p    ON a.patientId   = p.Id " +
+        "INNER JOIN Doctors     d    ON a.doctorId    = d.Id " +
+        "INNER JOIN Departments dept ON d.departmentId = dept.id ";
 
     public void insert(Appointment a) throws SQLException {
         String sql = "INSERT INTO Appointments (patientId, doctorId, appointmentDate, status) VALUES (?, ?, ?, ?)";
@@ -27,6 +30,7 @@ public class AppointmentDAO {
             stmt.setString(4, a.getStatus());
             stmt.executeUpdate();
         }
+        AppCache.invalidate(AppointmentView.class);
     }
 
     public void update(Appointment a) throws SQLException {
@@ -40,6 +44,7 @@ public class AppointmentDAO {
             stmt.setLong(5, a.getId());
             stmt.executeUpdate();
         }
+        AppCache.invalidate(AppointmentView.class);
     }
 
     public void delete(long id) throws SQLException {
@@ -49,65 +54,47 @@ public class AppointmentDAO {
             stmt.setLong(1, id);
             stmt.executeUpdate();
         }
+        AppCache.invalidate(AppointmentView.class);
     }
 
     public List<AppointmentView> findAll() throws SQLException {
+        List<AppointmentView> cached = AppCache.getAll(AppointmentView.class);
+        if (cached != null) return cached;
+
         String sql = SELECT_VIEW + "ORDER BY a.appointmentDate DESC";
+        List<AppointmentView> list;
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            return mapRows(stmt.executeQuery());
+            list = mapRows(stmt.executeQuery());
         }
+        AppCache.put(AppointmentView.class, list);
+        return list;
     }
 
     public AppointmentView findById(long id) throws SQLException {
-        String sql = SELECT_VIEW + "WHERE a.Id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setLong(1, id);
-            List<AppointmentView> result = mapRows(stmt.executeQuery());
-            return result.isEmpty() ? null : result.get(0);
-        }
+        return findAll().stream().filter(a -> a.getId() == id).findFirst().orElse(null);
     }
 
     public List<AppointmentView> search(String keyword) throws SQLException {
-        String sql = SELECT_VIEW +
-            "WHERE p.Name LIKE ? OR d.Name LIKE ? OR a.status LIKE ? " +
-            "ORDER BY a.appointmentDate DESC";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            String term = "%" + keyword + "%";
-            stmt.setString(1, term);
-            stmt.setString(2, term);
-            stmt.setString(3, term);
-            return mapRows(stmt.executeQuery());
-        }
-    }
-
-    public List<AppointmentView> findByDoctor(long doctorId) throws SQLException {
-        String sql = SELECT_VIEW + "WHERE a.doctorId = ? ORDER BY a.appointmentDate DESC";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setLong(1, doctorId);
-            return mapRows(stmt.executeQuery());
-        }
+        String lower = keyword.toLowerCase();
+        return findAll().stream()
+            .filter(a -> a.getPatientName().toLowerCase().contains(lower)
+                      || a.getDoctorName().toLowerCase().contains(lower)
+                      || a.getStatus().toLowerCase().contains(lower)
+                      || (a.getPatientPhone() != null && a.getPatientPhone().contains(keyword)))
+            .toList();
     }
 
     public List<AppointmentView> findByPatient(long patientId) throws SQLException {
-        String sql = SELECT_VIEW + "WHERE a.patientId = ? ORDER BY a.appointmentDate DESC";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setLong(1, patientId);
-            return mapRows(stmt.executeQuery());
-        }
+        return findAll().stream().filter(a -> a.getPatientId() == patientId).toList();
+    }
+
+    public List<AppointmentView> findByDoctor(long doctorId) throws SQLException {
+        return findAll().stream().filter(a -> a.getDoctorId() == doctorId).toList();
     }
 
     public List<AppointmentView> findByStatus(String status) throws SQLException {
-        String sql = SELECT_VIEW + "WHERE a.status = ? ORDER BY a.appointmentDate DESC";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, status);
-            return mapRows(stmt.executeQuery());
-        }
+        return findAll().stream().filter(a -> a.getStatus().equals(status)).toList();
     }
 
     private List<AppointmentView> mapRows(ResultSet rs) throws SQLException {
@@ -118,7 +105,9 @@ public class AppointmentDAO {
             v.setPatientId(rs.getLong("patientId"));
             v.setDoctorId(rs.getLong("doctorId"));
             v.setPatientName(rs.getString("patientName"));
+            v.setPatientPhone(rs.getString("patientPhone"));
             v.setDoctorName(rs.getString("doctorName"));
+            v.setDepartmentName(rs.getString("departmentName"));
             v.setAppointmentDate(rs.getTimestamp("appointmentDate").toLocalDateTime());
             v.setStatus(rs.getString("status"));
             list.add(v);

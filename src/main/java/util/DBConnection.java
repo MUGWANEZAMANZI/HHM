@@ -3,22 +3,13 @@ package util;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 public class DBConnection {
 
+    private static final String URL = "jdbc:mysql://localhost:3306/hhm";
+    private static final String USER = "root";
+    private static final String PASSWORD = "root";
 
-    /**
-     * This method is used to get a connection to the database.
-     * @return Connection object
-     */
-    public static Connection getConnection() {
-        try(Connection con = DriverManager.getConnection("jdbc:mysql://localhost:3306/hhm", "root", "root")) {
-            return con;
-        } catch (SQLException e) {
-            IO.println("Error connecting to database: " + e.getMessage());
-            return null;
-        }
+    public static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(URL, USER, PASSWORD);
     }
 }

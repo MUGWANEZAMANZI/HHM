@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox spacing="14" style="-fx-background-color:#f4f6f9;"
+      xmlns="http://javafx.com/javafx/17.0.12"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="controller.AppointmentController">
+    <padding><Insets bottom="24" left="24" right="24" top="24"/></padding>
+
+    <!-- Header -->
+    <HBox alignment="CENTER_LEFT" spacing="10">
+        <Label style="-fx-font-size:20px; -fx-font-weight:bold; -fx-text-fill:#1e2a3a;"
+               text="Appointment Management"/>
+        <Label fx:id="statusLabel" style="-fx-text-fill:#e53935; -fx-font-size:12px;"/>
+    </HBox>
+
+    <!-- Form Card -->
+    <VBox spacing="10"
+          style="-fx-background-color:white; -fx-background-radius:8; -fx-effect:dropshadow(gaussian,#ccc,4,0,0,2);">
+        <padding><Insets bottom="16" left="16" right="16" top="16"/></padding>
+        <Label style="-fx-font-weight:bold; -fx-text-fill:#444;" text="Appointment Details"/>
+
+        <HBox spacing="10">
+            <ComboBox fx:id="patientCombo"    promptText="Select Patient" prefWidth="220"/>
+            <ComboBox fx:id="doctorCombo"     promptText="Select Doctor"  prefWidth="220"/>
+            <DatePicker fx:id="datePicker"    promptText="Date"           prefWidth="160"/>
+            <TextField  fx:id="timeField"     promptText="Time (HH:mm)"   prefWidth="100"/>
+            <ComboBox   fx:id="statusCombo"   promptText="Status"         prefWidth="130"/>
+        </HBox>
+
+        <HBox spacing="10">
+            <Button fx:id="saveBtn" text="Book Appointment" onAction="#onSave"
+                    style="-fx-background-color:#1976D2; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 18;"/>
+            <Button text="Cancel Appointment" onAction="#onCancel"
+                    style="-fx-background-color:#f57c00; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 18;"/>
+            <Button text="Clear" onAction="#onClear"
+                    style="-fx-background-color:#90a4ae; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 18;"/>
+            <Button text="Delete" onAction="#onDelete"
+                    style="-fx-background-color:#e53935; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 18;"/>
+        </HBox>
+    </VBox>
+
+    <!-- Search / Filter bar -->
+    <HBox alignment="CENTER_LEFT" spacing="10">
+        <TextField fx:id="searchField" prefWidth="280" promptText="Search by patient, doctor or status..."/>
+        <ComboBox  fx:id="filterStatus" promptText="Filter by status" prefWidth="160"/>
+        <Button onAction="#onSearch"  text="Search"
+                style="-fx-background-color:#1976D2; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 14;"/>
+        <Button onAction="#onShowAll" text="Show All"
+                style="-fx-background-color:#546e7a; -fx-text-fill:white; -fx-background-radius:4; -fx-padding:7 14;"/>
+    </HBox>
+
+    <!-- Table -->
+    <TableView fx:id="appointmentTable" VBox.vgrow="ALWAYS"
+               style="-fx-background-color:white; -fx-background-radius:8;">
+        <columns>
+            <TableColumn fx:id="colId"         text="ID"          prefWidth="50"/>
+            <TableColumn fx:id="colPatient"    text="Patient"     prefWidth="160"/>
+            <TableColumn fx:id="colPhone"      text="Phone"       prefWidth="120"/>
+            <TableColumn fx:id="colDoctor"     text="Doctor"      prefWidth="160"/>
+            <TableColumn fx:id="colDepartment" text="Department"  prefWidth="130"/>
+            <TableColumn fx:id="colDate"       text="Date"        prefWidth="100"/>
+            <TableColumn fx:id="colTime"       text="Time"        prefWidth="70"/>
+            <TableColumn fx:id="colStatus"     text="Status"      prefWidth="100"/>
+        </columns>
+    </TableView>
+
+</VBox>

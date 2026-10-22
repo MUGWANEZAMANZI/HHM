@@ -1,6 +1,7 @@
 package dao;
 
 import model.Prescription;
+import util.AppCache;
 import util.DBConnection;
 
 import java.sql.*;
@@ -20,9 +21,13 @@ public class PrescriptionDAO {
             stmt.setString(5, p.getNotes());
             stmt.executeUpdate();
         }
+        AppCache.invalidate(Prescription.class);
     }
 
     public List<Prescription> findAll() throws SQLException {
+        List<Prescription> cached = AppCache.getAll(Prescription.class);
+        if (cached != null) return cached;
+
         List<Prescription> list = new ArrayList<>();
         String sql = "SELECT * FROM Prescriptions ORDER BY issuedAt DESC";
         try (Connection conn = DBConnection.getConnection();
@@ -30,42 +35,20 @@ public class PrescriptionDAO {
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) list.add(mapRow(rs));
         }
+        AppCache.put(Prescription.class, list);
         return list;
     }
 
     public Prescription findById(long id) throws SQLException {
-        String sql = "SELECT * FROM Prescriptions WHERE Id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setLong(1, id);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) return mapRow(rs);
-        }
-        return null;
+        return findAll().stream().filter(p -> p.getId() == id).findFirst().orElse(null);
     }
 
     public List<Prescription> findByPatient(long patientId) throws SQLException {
-        List<Prescription> list = new ArrayList<>();
-        String sql = "SELECT * FROM Prescriptions WHERE patientId = ? ORDER BY issuedAt DESC";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setLong(1, patientId);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) list.add(mapRow(rs));
-        }
-        return list;
+        return findAll().stream().filter(p -> p.getPatientId() == patientId).toList();
     }
 
     public List<Prescription> findByDoctor(long doctorId) throws SQLException {
-        List<Prescription> list = new ArrayList<>();
-        String sql = "SELECT * FROM Prescriptions WHERE doctorId = ? ORDER BY issuedAt DESC";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setLong(1, doctorId);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) list.add(mapRow(rs));
-        }
-        return list;
+        return findAll().stream().filter(p -> p.getDoctorId() == doctorId).toList();
     }
 
     public void update(Prescription p) throws SQLException {
@@ -80,6 +63,7 @@ public class PrescriptionDAO {
             stmt.setLong(6, p.getId());
             stmt.executeUpdate();
         }
+        AppCache.invalidate(Prescription.class);
     }
 
     public void delete(long id) throws SQLException {
@@ -89,6 +73,7 @@ public class PrescriptionDAO {
             stmt.setLong(1, id);
             stmt.executeUpdate();
         }
+        AppCache.invalidate(Prescription.class);
     }
 
     private Prescription mapRow(ResultSet rs) throws SQLException {
