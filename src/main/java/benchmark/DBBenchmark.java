@@ -28,8 +28,7 @@ import java.util.List;
  * </ol>
  *
  * <p>Results are printed to the console and saved to {@code benchmark_results.csv}
- * in the project root directory so they can be pasted directly into the
- * performance report.</p>
+ * in the project root directory.</p>
  *
  * <p><b>How to run:</b> right-click this file in IntelliJ → Run 'DBBenchmark.main()'.
  * Make sure MySQL is running and the {@code hhm} database is populated before

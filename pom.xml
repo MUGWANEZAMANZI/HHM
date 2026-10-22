@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.example</groupId>
+  <groupId>main</groupId>
   <artifactId>FXJava</artifactId>
   <version>1.0-SNAPSHOT</version>
   <name>FXJava</name>
@@ -78,18 +78,7 @@
       <artifactId>mysql-connector-j</artifactId>
       <version>9.3.0</version>
     </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <version>${junit.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-engine</artifactId>
-      <version>${junit.version}</version>
-      <scope>test</scope>
-    </dependency>  </dependencies>
+  </dependencies>
 
   <build>
     <plugins>
@@ -111,7 +100,7 @@
             <!-- Default configuration for running with: mvn clean javafx:run -->
             <id>default-cli</id>
             <configuration>
-              <mainClass>com.example.fxjava/hhm.Hhm</mainClass>
+              <mainClass>fxjava/hhm.Hhm</mainClass>
               <launcher>app</launcher>
               <jlinkZipName>app</jlinkZipName>
               <jlinkImageName>app</jlinkImageName>
