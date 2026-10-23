@@ -219,7 +219,7 @@ public class AppointmentController {
                 if (empty || s == null) { setText(null); setStyle(""); return; }
                 setText(s);
                 setStyle(switch (s) {
-                    case "Cancelled"   -> "-fx-text-fill:#e53935; -fx-font-weight:bold;";
+                    case "Cancelled"  -> "-fx-text-fill:#e53935; -fx-font-weight:bold;";
                     case "Completed"   -> "-fx-text-fill:#2e7d32; -fx-font-weight:bold;";
                     case "Rescheduled" -> "-fx-text-fill:#f57c00; -fx-font-weight:bold;";
                     default            -> "-fx-text-fill:#1976D2; -fx-font-weight:bold;";

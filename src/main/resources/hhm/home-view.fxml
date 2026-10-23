@@ -3,34 +3,24 @@
 <?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
 
-<BorderPane xmlns="http://javafx.com/javafx/17.0.12"
-            xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="controller.HomeController"
-            prefHeight="680" prefWidth="1100">
+<BorderPane prefHeight="680" prefWidth="1100" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.HomeController">
 
     <!-- Sidebar -->
     <left>
-        <VBox style="-fx-background-color:#1e2a3a;" prefWidth="200" spacing="4">
-            <padding><Insets top="30" left="0" right="0" bottom="20"/></padding>
+        <VBox prefWidth="200" spacing="4" style="-fx-background-color:#1e2a3a;">
+            <padding><Insets bottom="20" left="0" right="0" top="30" /></padding>
 
-            <Label text="HHM System"
-                   style="-fx-text-fill:white; -fx-font-size:16px; -fx-font-weight:bold; -fx-padding:0 0 20 20;"/>
+            <Label style="-fx-text-fill:white; -fx-font-size:16px; -fx-font-weight:bold; -fx-padding:0 0 20 20;" text="HHM System" />
 
-            <Button text="Dashboard"       onAction="#showDashboard"   maxWidth="Infinity"
-                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
-            <Button text="Patients"        onAction="#showPatients"    maxWidth="Infinity"
-                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
-            <Button text="Doctors"         onAction="#showDoctors"     maxWidth="Infinity"
-                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
-            <Button text="Appointments"    onAction="#showAppointments" maxWidth="Infinity"
-                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
-            <Button text="Prescriptions"   onAction="#showPrescriptions" maxWidth="Infinity"
-                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
-            <Button text="Inventory"       onAction="#showInventory"   maxWidth="Infinity"
-                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
-            <Button text="Feedback"        onAction="#showFeedback"    maxWidth="Infinity"
-                    style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" />
+            <Button maxWidth="Infinity" onAction="#showDashboard" style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" text="Dashboard" />
+            <Button maxWidth="Infinity" onAction="#showPatients" style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" text="Patients" />
+            <Button maxWidth="Infinity" onAction="#showDoctors" style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" text="Doctors" />
+            <Button maxWidth="Infinity" onAction="#showAppointments" style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" text="Appointments" />
+            <Button maxWidth="Infinity" onAction="#showPrescriptions" style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" text="Prescriptions" />
+            <Button maxWidth="Infinity" onAction="#showInventory" style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" text="Inventory" />
+            <Button maxWidth="Infinity" onAction="#showFeedback" style="-fx-background-color:transparent; -fx-text-fill:#aab4c4; -fx-font-size:13px; -fx-alignment:center-left; -fx-padding:10 20;" text="Feedback" />
         </VBox>
     </left>
 
@@ -38,10 +28,12 @@
     <center>
         <StackPane fx:id="contentArea" style="-fx-background-color:#f4f6f9;">
             <VBox alignment="CENTER" spacing="12">
-                <Label text="Welcome to Hospital Health Management"
-                       style="-fx-font-size:22px; -fx-font-weight:bold; -fx-text-fill:#1e2a3a;"/>
-                <Label text="Select a section from the sidebar to get started."
-                       style="-fx-text-fill:#666;"/>
+                <Label style="-fx-font-size:22px; -fx-font-weight:bold; -fx-text-fill:#1e2a3a;" text="Welcome to Hospital Health Management" />
+                <Label style="-fx-text-fill:#666;" text="Select a section from the sidebar to get started." />
+                <Label fx:id="time" text="Time">
+               <font>
+                  <Font size="43.0" />
+               </font></Label>
             </VBox>
         </StackPane>
     </center>
