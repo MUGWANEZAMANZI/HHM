@@ -3,15 +3,22 @@ package service;
 import dao.AppointmentDAO;
 import model.Appointment;
 import model.AppointmentView;
+import org.springframework.stereotype.Service;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Service
 public class AppointmentService {
 
-    private final AppointmentDAO appointmentDAO = new AppointmentDAO();
+    private final AppointmentDAO appointmentDAO;
 
+    //Constructor injection for AppointmentDAO
+    public AppointmentService(AppointmentDAO appointmentDAO)
+    {
+        this.appointmentDAO = appointmentDAO;
+    }
     // Business rule: cannot book an appointment in the past
     public void book(Appointment appointment) throws ServiceException {
         if (appointment.getAppointmentDate().isBefore(LocalDateTime.now()))

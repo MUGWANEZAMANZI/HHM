@@ -3,15 +3,23 @@ package service;
 import dao.PatientDAO;
 import dao.PatientFeedbackDAO;
 import model.PatientFeedback;
+import org.springframework.stereotype.Service;
 
 import java.sql.SQLException;
 import java.util.List;
 
+@Service
 public class PatientFeedbackService {
 
-    private final PatientFeedbackDAO feedbackDAO = new PatientFeedbackDAO();
-    private final PatientDAO         patientDAO  = new PatientDAO();
+    private final PatientFeedbackDAO feedbackDAO;
+    private final PatientDAO         patientDAO;
 
+
+    PatientFeedbackService(PatientFeedbackDAO feedbackDAO, PatientDAO patientDAO)
+    {
+        this.feedbackDAO = feedbackDAO;
+        this.patientDAO = patientDAO;
+    }
     // Business rule: feedback text must not be empty, patient must exist
     public void submit(PatientFeedback feedback) throws ServiceException {
         if (feedback.getFeedback() == null || feedback.getFeedback().isBlank())
