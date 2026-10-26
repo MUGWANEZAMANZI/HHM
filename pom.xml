@@ -70,6 +70,13 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional>
+    </dependency>
+
+
     <!-- GraphQL test client -->
     <dependency>
       <groupId>org.springframework.graphql</groupId>
