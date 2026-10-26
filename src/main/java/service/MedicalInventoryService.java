@@ -2,13 +2,21 @@ package service;
 
 import dao.MedicalInventoryDAO;
 import model.MedicalInventory;
+import org.springframework.stereotype.Service;
 
 import java.sql.SQLException;
 import java.util.List;
 
+@Service
 public class MedicalInventoryService {
 
-    private final MedicalInventoryDAO inventoryDAO = new MedicalInventoryDAO();
+    private final MedicalInventoryDAO inventoryDAO;
+
+    //Constructor injection for MedicalInventoryDAO
+    public MedicalInventoryService(MedicalInventoryDAO inventoryDAO)
+    {
+        this.inventoryDAO = inventoryDAO;
+    }
 
     // Business rule: SKU must be unique across all inventory items
     public void add(MedicalInventory item) throws ServiceException {

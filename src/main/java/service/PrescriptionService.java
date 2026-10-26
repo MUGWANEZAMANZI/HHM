@@ -3,14 +3,23 @@ package service;
 import dao.PatientDAO;
 import dao.PrescriptionDAO;
 import model.Prescription;
+import org.springframework.stereotype.Service;
 
 import java.sql.SQLException;
 import java.util.List;
 
+@Service
 public class PrescriptionService {
 
-    private final PrescriptionDAO prescriptionDAO = new PrescriptionDAO();
-    private final PatientDAO      patientDAO      = new PatientDAO();
+    private final PrescriptionDAO prescriptionDAO;
+    private final PatientDAO      patientDAO;
+
+    //Constructor injection for DAOs
+    public PrescriptionService(PrescriptionDAO prescriptionDAO, PatientDAO patientDAO)
+    {
+        this.prescriptionDAO = prescriptionDAO;
+        this.patientDAO = patientDAO;
+    }
 
     // Business rule: patient must exist before issuing a prescription
     public void issue(Prescription prescription) throws ServiceException {

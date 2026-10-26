@@ -4,14 +4,23 @@ import dao.PatientAddressDAO;
 import dao.PatientDAO;
 import model.Patient;
 import model.PatientAddress;
+import org.springframework.stereotype.Service;
 
 import java.sql.SQLException;
 import java.util.List;
 
+@Service
 public class PatientService {
 
-    private final PatientDAO     patientDAO = new PatientDAO();
-    private final PatientAddressDAO addressDAO = new PatientAddressDAO();
+    private final PatientDAO     patientDAO;
+    private final PatientAddressDAO addressDAO;
+
+    //Constructor injection for DAOs
+    public PatientService(PatientDAO patientDAO, PatientAddressDAO addressDAO)
+    {
+        this.patientDAO = patientDAO;
+        this.addressDAO = addressDAO;
+    }
 
     // Business rule: email must be unique across existing patients
     public long register(String name, String phone, String email, String address,
