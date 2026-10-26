@@ -1,21 +1,23 @@
-package model;
+package com.model;
 
 import java.time.LocalDateTime;
 
-public class Appointment {
+public class Prescription {
     private long id;
     private long patientId;
     private long doctorId;
-    private LocalDateTime appointmentDate;
+    private LocalDateTime issuedAt;
     private String status;
+    private String notes;
 
-    public Appointment() {}
+    public Prescription() {}
 
-    public Appointment(long patientId, long doctorId, LocalDateTime appointmentDate, String status) {
+    public Prescription(long patientId, long doctorId, LocalDateTime issuedAt, String status, String notes) {
         this.patientId = patientId;
         this.doctorId = doctorId;
-        this.appointmentDate = appointmentDate;
+        this.issuedAt = issuedAt;
         this.status = status;
+        this.notes = notes;
     }
 
     public long getId() { return id; }
@@ -27,9 +29,12 @@ public class Appointment {
     public long getDoctorId() { return doctorId; }
     public void setDoctorId(long doctorId) { this.doctorId = doctorId; }
 
-    public LocalDateTime getAppointmentDate() { return appointmentDate; }
-    public void setAppointmentDate(LocalDateTime appointmentDate) { this.appointmentDate = appointmentDate; }
+    public LocalDateTime getIssuedAt() { return issuedAt; }
+    public void setIssuedAt(LocalDateTime issuedAt) { this.issuedAt = issuedAt; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
 }
