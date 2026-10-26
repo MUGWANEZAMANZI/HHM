@@ -1,4 +1,4 @@
-package model;
+package com.model;
 
 public class MedicalInventory {
     private long id;
