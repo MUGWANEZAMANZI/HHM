@@ -52,7 +52,7 @@ SELECT COUNT(*) FROM Doctors;   -- should return 10
 
 ## Database Connection
 
-The connection is configured in `src/main/java/util/DBConnection.java`:
+The connection is configured in `src/main/java/com/util`:
 
 ```java
 private static final String URL      = "jdbc:mysql://localhost:3306/hhm";
@@ -71,7 +71,7 @@ Change `USER` and `PASSWORD` to match your local MySQL credentials before runnin
 1. Open the project: **File → Open** → select the `HHM` folder
 2. Wait for Maven to download dependencies (first run only)
 3. Press **Ctrl+Alt+Y** to sync file changes if prompted
-4. Run `src/main/java/hhm/Hhm.java` → right-click → **Run 'Hhm'**
+4. Run `src/main/java/com/hhm` → right-click → **Run 'Hhm'**
 
 ### Option B — Maven command line
 
