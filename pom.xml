@@ -70,6 +70,7 @@
       <scope>test</scope>
     </dependency>
 
+<<<<<<< HEAD
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
@@ -77,6 +78,8 @@
     </dependency>
 
 
+=======
+>>>>>>> 1d9a10aeca74cc7fd82262917523190fac425ce8
     <!-- GraphQL test client -->
     <dependency>
       <groupId>org.springframework.graphql</groupId>
