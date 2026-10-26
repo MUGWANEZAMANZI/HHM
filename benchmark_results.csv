@@ -1,10 +1,10 @@
 Scenario,Operation,Avg Time (ms),Rows Returned,Notes
-No Index,SELECT * (all rows),36,610,Full table scan
-No Index,Search LIKE 'Uwi',21,31,Full table scan — no index
-With Index,SELECT * (all rows),20,610,Index on Name column
-With Index,Search LIKE 'Uwi',19,31,Index on Name column
-Cache Miss,PatientDAO.findAll(),21,610,Cache cleared before each call — hits DB
+No Index,SELECT * (all rows),50,610,Full table scan
+No Index,Search LIKE 'Uwi',32,31,Full table scan — no index
+With Index,SELECT * (all rows),26,610,Index on Name column
+With Index,Search LIKE 'Uwi',23,31,Index on Name column
+Cache Miss,PatientDAO.findAll(),29,610,Cache cleared before each call — hits DB
 Cache Hit,PatientDAO.findAll(),0,610,Served from RAM — no DB round-trip
 ,,,,
-Summary,Index speedup (search),1.11x,,
-Summary,Cache speedup (miss→hit),21.00x,,
+Summary,Index speedup (search),1.39x,,
+Summary,Cache speedup (miss→hit),29.00x,,
