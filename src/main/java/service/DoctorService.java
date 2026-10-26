@@ -4,14 +4,24 @@ import dao.AppointmentDAO;
 import dao.DoctorDAO;
 import model.AppointmentView;
 import model.Doctor;
+import org.springframework.stereotype.Service;
 
 import java.sql.SQLException;
 import java.util.List;
 
+@Service
 public class DoctorService {
 
-    private final DoctorDAO      doctorDAO      = new DoctorDAO();
-    private final AppointmentDAO appointmentDAO = new AppointmentDAO();
+    private final DoctorDAO      doctorDAO;
+    private final AppointmentDAO appointmentDAO;
+
+
+    // Constructor injection for DAOs
+    public DoctorService(DoctorDAO doctorDAO, AppointmentDAO appointmentDAO)
+    {
+        this.doctorDAO = doctorDAO;
+        this.appointmentDAO = appointmentDAO;
+    }
 
     // Business rule: license number must be unique
     public void register(Doctor doctor) throws ServiceException {
