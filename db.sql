@@ -142,6 +142,8 @@ CREATE INDEX `idx_appointments_doctor`   ON `Appointments` (`doctorId`);
 CREATE INDEX `idx_prescriptions_patient` ON `Prescriptions`(`patientId`);
 
 
+-- What is the effect of creating many indices, how iveruse dindocces could be come a problem
+-- How to explain why given choice was made
 
 -- Seed data for Departments
 INSERT INTO `Departments` (`name`) VALUES
