@@ -1,5 +1,8 @@
 package com.model;
 
+import lombok.ToString;
+
+@ToString
 public class MedicalItem {
     private long id;
     private long inventoryId;

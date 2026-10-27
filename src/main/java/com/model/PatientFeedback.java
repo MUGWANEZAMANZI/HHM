@@ -1,7 +1,9 @@
 package com.model;
 
 import java.time.LocalDateTime;
+import lombok.ToString;
 
+@ToString
 public class PatientFeedback {
     private long id;
     private long patientId;
