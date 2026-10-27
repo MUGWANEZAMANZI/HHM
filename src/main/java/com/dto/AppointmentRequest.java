@@ -1,5 +1,6 @@
 package com.dto;
 
+import com.validation.FutureDateTime;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -21,6 +22,7 @@ public class AppointmentRequest {
     private Long doctorId;
 
     @NotBlank(message = "Appointment date is required")
+    @FutureDateTime
     @Schema(description = "ISO 8601 date-time for the appointment", example = "2026-11-15T09:30:00")
     private String appointmentDate;
 
