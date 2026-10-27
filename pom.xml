@@ -76,6 +76,7 @@
       <optional>true</optional>
     </dependency>
 
+
     <!-- GraphQL test client -->
     <dependency>
       <groupId>org.springframework.graphql</groupId>

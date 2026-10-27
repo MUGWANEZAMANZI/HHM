@@ -1,0 +1,159 @@
+# ─── Domain types ────────────────────────────────────────────────────────────
+
+type Patient {
+    id: ID!
+    name: String!
+    phone: String
+    email: String
+    address: String
+}
+
+type Doctor {
+    id: ID!
+    name: String!
+    departmentId: ID!
+    licenseNumber: String!
+}
+
+type Department {
+    id: ID!
+    name: String!
+}
+
+# AppointmentView is the read model — it contains joined names from Patient/Doctor/Department
+type AppointmentView {
+    id: ID!
+    patientId: ID!
+    doctorId: ID!
+    patientName: String!
+    patientPhone: String
+    doctorName: String!
+    departmentName: String
+    appointmentDate: String!
+    status: String!
+}
+
+type Prescription {
+    id: ID!
+    patientId: ID!
+    doctorId: ID!
+    issuedAt: String!
+    status: String!
+    notes: String
+}
+
+type PrescriptionItem {
+    id: ID!
+    prescriptionId: ID!
+    medicationId: ID!
+    dosage: String
+    frequency: String
+    quantity: Int!
+    refillsAllowed: Int!
+}
+
+type PatientFeedback {
+    id: ID!
+    patientId: ID!
+    feedback: String!
+    privateNotes: String
+    issuedAt: String!
+}
+
+type MedicalInventory {
+    id: ID!
+    name: String!
+    sku: String!
+    quantityOnHand: Int!
+    reorderLevel: Int!
+}
+
+# ─── Queries ──────────────────────────────────────────────────────────────────
+
+type Query {
+    # Patient
+    patients(search: String): [Patient!]!
+    patient(id: ID!): Patient
+
+    # Doctor
+    doctors(search: String): [Doctor!]!
+    doctor(id: ID!): Doctor
+
+    # Department
+    departments: [Department!]!
+
+    # Appointment
+    appointments(search: String, status: String): [AppointmentView!]!
+    appointment(id: ID!): AppointmentView
+
+    # Prescription
+    prescriptions: [Prescription!]!
+    prescription(id: ID!): Prescription
+
+    # Feedback
+    feedback(search: String): [PatientFeedback!]!
+
+    # Inventory
+    inventory(search: String): [MedicalInventory!]!
+    lowStockItems: [MedicalInventory!]!
+}
+
+# ─── Mutations ────────────────────────────────────────────────────────────────
+
+type Mutation {
+    # Patient
+    registerPatient(
+        name: String!
+        phone: String!
+        email: String!
+        address: String
+        district: String
+        sector: String
+        cell: String
+        village: String
+    ): String!
+    deletePatient(id: ID!): Boolean!
+
+    # Doctor
+    registerDoctor(
+        name: String!
+        departmentId: ID!
+        licenseNumber: String!
+    ): String!
+    deleteDoctor(id: ID!): Boolean!
+
+    # Appointment
+    bookAppointment(
+        patientId: ID!
+        doctorId: ID!
+        appointmentDate: String!
+    ): String!
+    cancelAppointment(id: ID!): Boolean!
+    deleteAppointment(id: ID!): Boolean!
+
+    # Prescription
+    issuePrescription(
+        patientId: ID!
+        doctorId: ID!
+        notes: String
+    ): String!
+    cancelPrescription(id: ID!): Boolean!
+    deletePrescription(id: ID!): Boolean!
+
+    # Feedback
+    submitFeedback(
+        patientId: ID!
+        feedback: String!
+        privateNotes: String
+    ): String!
+    deleteFeedback(id: ID!): Boolean!
+
+    # Inventory
+    addInventoryItem(
+        name: String!
+        sku: String!
+        quantityOnHand: Int!
+        reorderLevel: Int!
+    ): String!
+    deleteInventoryItem(id: ID!): Boolean!
+}
