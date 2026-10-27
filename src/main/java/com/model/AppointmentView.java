@@ -1,8 +1,10 @@
 package com.model;
 
 import java.time.LocalDateTime;
+import lombok.ToString;
 
 // Read-only DTO — populated by JOIN queries in AppointmentDAO, never written to DB
+@ToString
 public class AppointmentView {
     private long id;
     private long patientId;
