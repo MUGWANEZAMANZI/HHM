@@ -1,6 +1,7 @@
 package com.service;
 
 import com.dao.MedicalInventoryDAO;
+import com.dao.MedicalItemDAO;
 import com.model.MedicalInventory;
 import org.springframework.stereotype.Service;
 
@@ -10,14 +11,14 @@ import java.util.List;
 public class MedicalInventoryService {
 
     private final MedicalInventoryDAO inventoryDAO;
+    private final MedicalItemDAO medicalItemDAO;
 
-    //Constructor injection for MedicalInventoryDAO
-    public MedicalInventoryService(MedicalInventoryDAO inventoryDAO)
-    {
-        this.inventoryDAO = inventoryDAO;
+    public MedicalInventoryService(MedicalInventoryDAO inventoryDAO,
+                                   MedicalItemDAO medicalItemDAO) {
+        this.inventoryDAO   = inventoryDAO;
+        this.medicalItemDAO = medicalItemDAO;
     }
 
-    // Business rule: SKU must be unique across all inventory items
     public void add(MedicalInventory item) throws ServiceException {
         boolean skuTaken = inventoryDAO.findAll().stream()
             .anyMatch(m -> m.getSku().equalsIgnoreCase(item.getSku()));
@@ -35,10 +36,14 @@ public class MedicalInventoryService {
     }
 
     public void remove(long itemId) throws ServiceException {
-        int rows = inventoryDAO.delete(itemId);
-        if (rows == 0)
+        if (inventoryDAO.findById(itemId) == null)
             throw new ServiceException(ServiceException.Type.NOT_FOUND,
                 "Inventory item with id " + itemId + " not found.");
+
+        // Delete child MedicalItems first to satisfy the FK constraint,
+        // then delete the parent inventory row.
+        medicalItemDAO.deleteByInventoryId(itemId);
+        inventoryDAO.delete(itemId);
     }
 
     public List<MedicalInventory> getAll() throws ServiceException {
@@ -49,7 +54,6 @@ public class MedicalInventoryService {
         return inventoryDAO.search(keyword);
     }
 
-    // Business rule: items at or below reorder level are considered low stock
     public List<MedicalInventory> getLowStock() throws ServiceException {
         return inventoryDAO.findLowStock();
     }
