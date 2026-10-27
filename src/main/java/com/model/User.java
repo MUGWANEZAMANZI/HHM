@@ -1,7 +1,9 @@
 package com.model;
 
 import java.time.LocalDateTime;
+import lombok.ToString;
 
+@ToString(exclude = "password")
 public class User {
     private long id;
     private String email;

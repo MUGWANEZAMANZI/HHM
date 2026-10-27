@@ -1,5 +1,8 @@
 package com.model;
 
+import lombok.ToString;
+
+@ToString
 public class Doctor {
     private long id;
     private String name;
