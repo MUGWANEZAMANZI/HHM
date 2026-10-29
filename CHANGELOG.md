@@ -1,6 +1,93 @@
 # Changelog
 
-All notable changes to HHM Spring Boot API (Module II) are documented here.
+All notable changes to Hospital Health Management System are documented here.
+
+---
+
+## [3.0.0] — 2026-10-29
+
+### Added
+
+**Spring Data JPA — Repository Layer**
+- `spring-boot-starter-data-jpa` added to `pom.xml`; `spring-boot-starter-jdbc` removed
+- 11 `JpaRepository` interfaces created in `com.repository`:
+  `PatientRepository`, `DoctorRepository`, `DepartmentRepository`, `AppointmentRepository`,
+  `PrescriptionRepository`, `PrescriptionItemRepository`, `PatientFeedbackRepository`,
+  `MedicalInventoryRepository`, `MedicalItemRepository`, `PatientAddressRepository`, `UserRepository`
+- Derived query methods — Spring generates SQL from method name at startup (no SQL code):
+  `findByEmail()`, `findByPatientId()`, `findByDoctorId()`, `findByStatus()`, `existsById()`,
+  `findByNameContainingIgnoreCase()`, `deleteByPatientId()`, `deleteByPrescriptionId()`, etc.
+- JPQL `@Query` — database-agnostic named queries referencing Java class/field names:
+  - `PatientRepository.search()` — multi-field keyword search across name, email, phone
+  - `AppointmentRepository.findByStatusSorted()` — appointments sorted by date descending
+  - `MedicalItemRepository.deleteByInventoryId()` — bulk child delete (`@Modifying`)
+- Native SQL `@Query(nativeQuery = true)` — raw MySQL queries for performance-critical paths:
+  - `PatientRepository.findAllPaged()` — paginated patient list ordered by name
+  - `AppointmentRepository.findAllWithDetails()` — 4-table JOIN returning patient name,
+    doctor name, department name alongside appointment fields
+
+**JPA Entities**
+- `@Entity`, `@Id`, `@GeneratedValue(strategy = GenerationType.IDENTITY)` added to all
+  11 model classes: Patient, Doctor, Department, Appointment, Prescription, PrescriptionItem,
+  PatientFeedback, MedicalInventory, MedicalItem, PatientAddress, User
+- Hibernate default naming strategy — no `@Table` or custom `@Column(name=...)` used;
+  Hibernate derives table/column names from class/field names automatically
+- `AppointmentView` intentionally excluded — it is a JOIN projection DTO, not a DB table
+
+**Transaction Management**
+- `@Transactional` on all service write methods (register, update, remove, save, delete)
+  — rolls back the entire unit if any step throws an exception
+- `@Transactional(readOnly = true)` on all service read methods (getAll, search, findBy)
+  — signals no writes, enables DB read optimizations
+- Propagation: `REQUIRED` (default) — joins an existing transaction or creates a new one
+
+**Spring Cache**
+- `@EnableCaching` already on `HhmApplication` — activated
+- `@Cacheable` on all service read methods — result stored in memory after first DB call
+- `@CacheEvict(allEntries = true)` on all service write methods — cache cleared after writes
+- Cache names: `"patients"`, `"doctors"`, `"appointments"`, `"prescriptions"`,
+  `"inventory"`, `"inventory-lowstock"`, `"feedback"`
+- Cache key strategies: `key = "#keyword"`, `key = "#patientId"`, `key = "#status"`
+
+**Properties — JPA config**
+- `spring.jpa.hibernate.ddl-auto=validate` (dev) — Hibernate validates schema on startup
+- `spring.jpa.show-sql=true` (dev) — generated SQL printed to console
+- `spring.jpa.properties.hibernate.format_sql=true` (dev) — SQL formatted for readability
+
+### Changed
+
+**Services — full JPA migration**
+- All services now inject `JpaRepository` interfaces instead of `JdbcTemplate` DAOs
+- `insert()` / `update()` / `delete()` replaced by `save()` / `existsById()` / `deleteById()`
+- `findById()` now returns `Optional<T>` — null checks replaced by `.orElseThrow()`
+  and `.isPresent()` throughout all services
+- `PatientService.register()` — email uniqueness check uses `findByEmail().isPresent()`
+  instead of `findAll().stream().anyMatch()` (single-row DB query vs full table scan)
+- `PrescriptionService.cancel()` — fetches entity with `findById().orElseThrow()`,
+  mutates `status`, then calls `save()` — no separate update SQL needed
+- `AppointmentService.cancel()` — same pattern: fetch → mutate status → save
+- `MedicalInventoryService.remove()` — still calls `medicalItemRepository.deleteByInventoryId()`
+  before deleting parent (FK constraint intact, now via `@Modifying` JPQL)
+- `DoctorService.remove()` — checks `findByDoctorId()` for scheduled appointments
+  before allowing deletion (same business rule, new method name)
+- `PatientFeedbackService.search()` — replaced nested stream join across two tables
+  with single repo call `findByFeedbackContainingIgnoreCase(keyword)`
+- `MedicalInventoryService.getLowStock()` — replaced `findLowStock()` SQL with
+  `findAll().stream().filter(m -> m.getQuantityOnHand() <= m.getReorderLevel())`
+- Field names `inventoryDAO`, `feedbackDAO`, `addressDAO` renamed to
+  `inventoryRepository`, `feedbackRepository`, `addressRepository`
+
+**Model classes**
+- `@Column(nullable = false)` added to `Patient.name`, `Patient.address`
+- `@Column(unique = true, nullable = false)` added to `Patient.phone`, `Patient.email`
+
+### Removed
+
+- `com.dao` package — all `JdbcTemplate`-based DAO classes replaced by JPA repositories:
+  `PatientDAO`, `DoctorDAO`, `AppointmentDAO`, `PrescriptionDAO`, `MedicalInventoryDAO`,
+  `PatientFeedbackDAO`, `DepartmentDAO`, `PatientAddressDAO`, `MedicalItemDAO`
+- Manual SQL strings, `ResultSet` mappers, `PreparedStatement` blocks — all eliminated
+- `GeneratedKeyHolder` / `KeyHolder` usage — `save()` returns the entity with its generated id
 
 ---
 
@@ -9,8 +96,7 @@ All notable changes to HHM Spring Boot API (Module II) are documented here.
 ### Added
 
 **Infrastructure**
-- `spring-boot-starter-validation` dependency added to `pom.xml` (was only a comment placeholder —
-  `@Valid` on controller parameters had no effect before this)
+- `spring-boot-starter-validation` dependency added to `pom.xml`
 - Spring profiles: `application-dev.properties` (DEBUG logging, stack traces, local MySQL) and
   `application-prod.properties` (INFO logging, errors hidden, env-var credentials)
 - `spring.profiles.active=dev` set in `application.properties` so dev is the default
@@ -20,62 +106,37 @@ All notable changes to HHM Spring Boot API (Module II) are documented here.
   `{ status, message, data }` instead of bare strings or entities
 
 **Exception handling**
-- `com.controller.GlobalExceptionHandler` — `@RestControllerAdvice` that handles:
+- `hhmcontroller` — `@RestControllerAdvice` handling:
   - `ServiceException` → 404 / 409 / 422 based on its `Type` enum
   - `MethodArgumentNotValidException` → 422 with field-level messages joined by "; "
   - `Exception` → 500 (unexpected errors)
-- All per-controller `try/catch` blocks removed — error handling is now centralized
+- All per-controller `try/catch` blocks removed
 
 **Custom validation**
-- `com.validation.FutureDateTime` — custom `@Constraint` annotation
-- `com.validation.FutureDateTimeValidator` — validates that a String field is:
-  1. A valid ISO 8601 `LocalDateTime`
-  2. Strictly after the current timestamp
-- `AppointmentRequest.appointmentDate` now annotated with `@FutureDateTime`
+- `com.hhm.validation.FutureDateTime` — custom `@Constraint` annotation
+- `com.hhm.validation.FutureDateTimeValidator` — validates ISO 8601 format AND future date
+- `AppointmentRequest.appointmentDate` annotated with `@FutureDateTime`
 
 **AOP improvements**
-- `@After` advice on controller pointcut — fires after method exits regardless of outcome
-- `@Around` advice on controller pointcut — measures and logs elapsed time in milliseconds
+- `@After` and `@Around` advice on controller pointcut
 - Second pointcut `serviceAspect()` targeting `com.service.*.*`
-- `@Before`, `@AfterReturning`, `@AfterThrowing` advices on service layer
+- `@Before`, `@AfterReturning`, `@AfterThrowing` on service layer
 
 **Sorting and pagination**
-- `GET /api/v1/patients` now accepts `?sort=`, `?page=`, `?size=` query parameters
-- `GET /api/v1/appointments` now accepts `?sort=`, `?page=`, `?size=` query parameters
-- In-memory sort then subList — no SQL changes needed
+- `GET /api/v1/patients` and `GET /api/v1/appointments` accept `?sort=`, `?page=`, `?size=`
 
 **Documentation**
-- `README.md` rewritten for Spring Boot: startup, Swagger UI walkthrough, GraphiQL walkthrough,
-  REST API reference, profile guide, AOP log format, REST vs GraphQL analysis
+- `README.md` rewritten for Spring Boot
 - `CHANGELOG.md` created
-
-**Model readability**
-- `@ToString` (Lombok) added to all model classes (Patient, Doctor, Department, Appointment,
-  AppointmentView, Prescription, PrescriptionItem, PatientFeedback, MedicalInventory,
-  PatientAddress, MedicalItem)
-- `User` uses `@ToString(exclude = "password")` — password never appears in logs
-
-### Changed
-
-- All controllers return `ApiResult<T>` on success instead of bare strings or entities
-- `PatientController` — removed per-controller `try/catch`; added sort + pagination
-- `DoctorController` — removed per-controller `try/catch`
-- `AppointmentController` — removed per-controller `try/catch`; added sort + pagination;
-  removed `catch (Exception e)` for parse error (now handled by `@FutureDateTime`)
-- `PrescriptionController` — removed per-controller `try/catch`
-- `FeedbackController` — removed per-controller `try/catch`
-- `InventoryController` — removed per-controller `try/catch`
-- `LoggingAop` now has two pointcuts (controller + service) and five advice types per pointcut
+- `@ToString` (Lombok) added to all model classes; `User` uses `@ToString(exclude="password")`
 
 ### Fixed
-
 - `@Valid` on controller parameters now enforces constraints (validation starter was absent)
-- Appointment date format error now returns 422 with a clear message via `@FutureDateTime`
-  instead of a generic catch-all
+- Appointment date parse error returns 422 via `@FutureDateTime` instead of generic 500
 
 ---
 
-## [2.0.0] — earlier
+## [2.0.0] — 2026-10-20
 
 ### Added
 - Spring Boot project initialized with Web, JDBC, GraphQL, Swagger, Lombok, AOP
@@ -85,7 +146,6 @@ All notable changes to HHM Spring Boot API (Module II) are documented here.
 - AOP `@Before`, `@AfterReturning`, `@AfterThrowing` on controller layer
 - Swagger UI via springdoc-openapi
 - DTO pattern with `@NotBlank`, `@NotNull`, `@Min` field validation
-- `ServiceException.Type` enum (NOT_FOUND / CONFLICT / VALIDATION) for typed error routing
-- `JdbcTemplate`-based DAOs replacing manual JDBC connection
-- `DAO.update()` and `DAO.delete()` return `int` (rows affected) — detected missing records
+- `ServiceException.Type` enum (NOT_FOUND / CONFLICT / VALIDATION)
+- `JdbcTemplate`-based DAOs replacing manual JDBC
 - Constructor-based dependency injection throughout

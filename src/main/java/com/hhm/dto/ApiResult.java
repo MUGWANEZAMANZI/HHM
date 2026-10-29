@@ -1,4 +1,4 @@
-package com.dto;
+package com.hhm.dto;
 
 /**
  * Uniform response envelope: every API response has status, message, and data.
