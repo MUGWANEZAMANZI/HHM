@@ -1,4 +1,4 @@
-use hhm;
+use hhm2;
 
 -- Create user database
 CREATE TABLE `Users` (
