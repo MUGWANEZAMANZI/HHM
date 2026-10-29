@@ -1,8 +1,8 @@
-package com.service;
+package com.hhm.service;
 
-import com.model.Prescription;
-import com.repository.PatientRepository;
-import com.repository.PrescriptionRepository;
+import com.hhm.model.Prescription;
+import com.hhm.repository.PatientRepository;
+import com.hhm.repository.PrescriptionRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;

@@ -1,9 +1,9 @@
-package com.service;
+package com.hhm.service;
 
-import com.model.Patient;
-import com.model.PatientAddress;
-import com.repository.PatientAddressRepository;
-import com.repository.PatientRepository;
+import com.hhm.model.Patient;
+import com.hhm.model.PatientAddress;
+import com.hhm.repository.PatientAddressRepository;
+import com.hhm.repository.PatientRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;

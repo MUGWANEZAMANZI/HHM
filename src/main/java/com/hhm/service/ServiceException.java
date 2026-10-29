@@ -1,4 +1,4 @@
-package com.service;
+package com.hhm.service;
 
 public class ServiceException extends RuntimeException {
 

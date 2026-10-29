@@ -1,8 +1,8 @@
-package com.service;
+package com.hhm.service;
 
-import com.model.Appointment;
-import com.model.AppointmentView;
-import com.repository.AppointmentRepository;
+import com.hhm.model.Appointment;
+import com.hhm.model.AppointmentView;
+import com.hhm.repository.AppointmentRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;

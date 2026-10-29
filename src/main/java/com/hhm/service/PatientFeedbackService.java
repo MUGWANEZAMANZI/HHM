@@ -1,8 +1,8 @@
-package com.service;
+package com.hhm.service;
 
-import com.model.PatientFeedback;
-import com.repository.PatientFeedbackRepository;
-import com.repository.PatientRepository;
+import com.hhm.model.PatientFeedback;
+import com.hhm.repository.PatientFeedbackRepository;
+import com.hhm.repository.PatientRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;

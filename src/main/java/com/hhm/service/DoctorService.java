@@ -1,11 +1,11 @@
-package com.service;
+package com.hhm.service;
 
-import com.dto.DoctorRequest;
-import com.model.Appointment;
-import com.model.Doctor;
-import com.repository.AppointmentRepository;
-import com.repository.DepartmentRepository;
-import com.repository.DoctorRepository;
+import com.hhm.dto.DoctorRequest;
+import com.hhm.model.Appointment;
+import com.hhm.model.Doctor;
+import com.hhm.repository.AppointmentRepository;
+import com.hhm.repository.DepartmentRepository;
+import com.hhm.repository.DoctorRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
