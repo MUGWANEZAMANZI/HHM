@@ -1,8 +1,8 @@
-package com.graphql;
+package com.hhm.graphql;
 
-import com.model.PatientFeedback;
-import com.service.PatientFeedbackService;
-import com.service.ServiceException;
+import com.hhm.model.PatientFeedback;
+import com.hhm.service.PatientFeedbackService;
+import com.hhm.service.ServiceException;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;

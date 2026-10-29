@@ -1,9 +1,9 @@
-package com.graphql;
+package com.hhm.graphql;
 
-import com.model.Appointment;
-import com.model.AppointmentView;
-import com.service.AppointmentService;
-import com.service.ServiceException;
+import com.hhm.model.Appointment;
+import com.hhm.model.AppointmentView;
+import com.hhm.service.AppointmentService;
+import com.hhm.service.ServiceException;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -24,25 +24,28 @@ public class AppointmentResolver {
     @QueryMapping
     public List<AppointmentView> appointments(@Argument String search, @Argument String status) {
         List<AppointmentView> all = appointmentService.getAll();
-        if (search != null && !search.isBlank()) {
-            return all.stream().filter(a -> status.equalsIgnoreCase(a.getStatus())).toList();
-        }
 
-        if(status != null && !status.isBlank()) {
-            String lower = search.toLowerCase();
-            return all.stream()
-                    .filter(a -> (a.getPatientName() != null && a.getPatientName().toLowerCase().contains(lower))
-                            || (a.getDoctorName() != null && a.getDoctorName().toLowerCase().contains(lower))
-                            || (a.getStatus() != null && a.getStatus().toLowerCase().contains(lower)))
+        if (status != null && !status.isBlank()) {
+            all = all.stream()
+                    .filter(a -> status.equalsIgnoreCase(a.getStatus()))
                     .toList();
         }
+
+        if (search != null && !search.isBlank()) {
+            String lower = search.toLowerCase();
+            all = all.stream()
+                    .filter(a -> (a.getPatientName() != null && a.getPatientName().toLowerCase().contains(lower))
+                            || (a.getDoctorName() != null && a.getDoctorName().toLowerCase().contains(lower)))
+                    .toList();
+        }
+
         return all;
     }
 
     @QueryMapping
     public AppointmentView appointment(@Argument Long id) {
         return appointmentService.getAll().stream()
-                .filter(a -> a.getId() == id)
+                .filter(a -> id != null && a.getId() == id.longValue())
                 .findFirst()
                 .orElse(null);
     }

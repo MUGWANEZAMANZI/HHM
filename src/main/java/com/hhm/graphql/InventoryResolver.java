@@ -1,8 +1,8 @@
-package com.graphql;
+package com.hhm.graphql;
 
-import com.model.MedicalInventory;
-import com.service.MedicalInventoryService;
-import com.service.ServiceException;
+import com.hhm.model.MedicalInventory;
+import com.hhm.service.MedicalInventoryService;
+import com.hhm.service.ServiceException;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;

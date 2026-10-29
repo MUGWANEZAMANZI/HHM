@@ -1,8 +1,8 @@
-package com.graphql;
+package com.hhm.graphql;
 
-import com.model.Patient;
-import com.service.PatientService;
-import com.service.ServiceException;
+import com.hhm.model.Patient;
+import com.hhm.service.PatientService;
+import com.hhm.service.ServiceException;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -29,7 +29,7 @@ public class PatientResolver {
     @QueryMapping
     public Patient patient(@Argument Long id) {
         return patientService.getAll().stream()
-                .filter(p -> p.getId() == id)
+                .filter(p -> id != null && p.getId() == id.longValue())
                 .findFirst()
                 .orElse(null);
     }

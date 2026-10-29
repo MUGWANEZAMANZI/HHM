@@ -1,9 +1,9 @@
-package com.graphql;
+package com.hhm.graphql;
 
-import com.dto.DoctorRequest;
-import com.model.Doctor;
-import com.service.DoctorService;
-import com.service.ServiceException;
+import com.hhm.dto.DoctorRequest;
+import com.hhm.model.Doctor;
+import com.hhm.service.DoctorService;
+import com.hhm.service.ServiceException;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;

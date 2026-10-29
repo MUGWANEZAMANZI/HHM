@@ -1,7 +1,7 @@
-package com.graphql;
+package com.hhm.graphql;
 
-import com.repository.DepartmentRepository;
-import com.model.Department;
+import com.hhm.repository.DepartmentRepository;
+import com.hhm.model.Department;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
 

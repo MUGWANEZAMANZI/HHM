@@ -1,8 +1,8 @@
-package com.graphql;
+package com.hhm.graphql;
 
-import com.model.Prescription;
-import com.service.PrescriptionService;
-import com.service.ServiceException;
+import com.hhm.model.Prescription;
+import com.hhm.service.PrescriptionService;
+import com.hhm.service.ServiceException;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
