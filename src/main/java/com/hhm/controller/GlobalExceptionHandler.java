@@ -1,7 +1,7 @@
-package com.controller;
+package com.hhm.controller;
 
-import com.dto.ApiResult;
-import com.service.ServiceException;
+import com.hhm.dto.ApiResult;
+import com.hhm.service.ServiceException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;

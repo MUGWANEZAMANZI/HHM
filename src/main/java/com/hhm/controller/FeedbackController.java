@@ -1,9 +1,9 @@
-package com.controller;
+package com.hhm.controller;
 
-import com.dto.ApiResult;
-import com.dto.FeedbackRequest;
-import com.model.PatientFeedback;
-import com.service.PatientFeedbackService;
+import com.hhm.dto.ApiResult;
+import com.hhm.dto.FeedbackRequest;
+import com.hhm.model.PatientFeedback;
+import com.hhm.service.PatientFeedbackService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

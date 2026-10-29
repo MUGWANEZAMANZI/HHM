@@ -1,9 +1,9 @@
-package com.controller;
+package com.hhm.controller;
 
-import com.dto.ApiResult;
-import com.dto.AppointmentRequest;
-import com.model.Appointment;
-import com.service.AppointmentService;
+import com.hhm.dto.ApiResult;
+import com.hhm.dto.AppointmentRequest;
+import com.hhm.model.Appointment;
+import com.hhm.service.AppointmentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
