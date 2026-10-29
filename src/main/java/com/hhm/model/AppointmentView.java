@@ -1,4 +1,4 @@
-package com.model;
+package com.hhm.model;
 
 import java.time.LocalDateTime;
 
