@@ -25,6 +25,8 @@ with derived queries, JPQL, native SQL, transaction management, and Spring Cache
 
 ```sql
 CREATE DATABASE hhm;
+-- Then run db.sql to create tables and seed data
+mysql -u root -p hhm < db.sql
 ```
 
 > **Module III note:** Hibernate manages the schema automatically via `ddl-auto=update`.
@@ -60,7 +62,9 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 mvn spring-boot:run -Dspring-boot.run.profiles=prod
 ```
 
----
+```bash
+# Development (default — debug logging, stack traces in errors)
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 ## Spring Data JPA — Repository Layer
 
@@ -123,7 +127,13 @@ Page<Patient> findAllPaged(Pageable pageable);
 void deleteByInventoryId(@Param("inventoryId") long inventoryId);
 ```
 
----
+```json
+{
+  "status": 404,
+  "message": "Patient with id 99 not found.",
+  "data": null
+}
+```
 
 ## Transaction Management
 
@@ -191,7 +201,11 @@ Write call  → @CacheEvict clears the cache → next read hits DB again (fresh 
 All write methods use `@CacheEvict(value = "...", allEntries = true)` — the entire cache
 for that entity is cleared after any write. This is safe: reads are cheap, staleness is not.
 
----
+- **Left panel** — write your query or mutation here
+- **Right panel** — response appears here after you run
+- **Variables panel** — click "Variables" at the bottom to open it; use JSON variables
+- **Documentation Explorer** — click the book icon (top-left) to browse the full schema
+- **Run button** — the play button (or Ctrl + Enter) executes the query
 
 ## Pagination and Sorting
 
@@ -199,6 +213,16 @@ All list endpoints support `Pageable` via `JpaRepository.findAll(Pageable pageab
 
 ### Swagger UI usage
 
+**List all patients:**
+```graphql
+query {
+  patients {
+    id
+    name
+    phone
+    email
+  }
+}
 ```
 GET /api/v1/patients?page=0&size=10&sort=name,asc
 GET /api/v1/appointments?page=1&size=5&sort=appointmentDate,desc
@@ -226,7 +250,30 @@ GET /api/v1/appointments?page=1&size=5&sort=appointmentDate,desc
 }
 ```
 
----
+**Get one patient by ID:**
+```graphql
+query {
+  patient(id: 1) {
+    id
+    name
+    phone
+    email
+    address
+  }
+}
+```
+
+**List all doctors with their department ID:**
+```graphql
+query {
+  doctors {
+    id
+    name
+    departmentId
+    licenseNumber
+  }
+}
+```
 
 ## Using Swagger UI (REST API)
 
@@ -276,7 +323,17 @@ Every response — success or error — uses the same shape:
 }
 ```
 
----
+### Example mutations
+
+**Register a patient:**
+```graphql
+mutation {
+  registerPatient(name: "Bob Habimana", phone: "0789000001", email: "bob@example.com") {
+    id
+    name
+  }
+}
+```
 
 ## Using GraphiQL (GraphQL API)
 
