@@ -1,8 +1,9 @@
 package com.hhm.graphql;
 
+import com.hhm.dto.InventoryRequest;
 import com.hhm.model.MedicalInventory;
 import com.hhm.service.MedicalInventoryService;
-import com.hhm.service.ServiceException;
+import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -32,27 +33,16 @@ public class InventoryResolver {
     }
 
     @MutationMapping
-    public String addInventoryItem(
-            @Argument String name,
-            @Argument String sku,
-            @Argument int quantityOnHand,
-            @Argument int reorderLevel) {
-        try {
-            MedicalInventory item = new MedicalInventory(name, sku, quantityOnHand, reorderLevel);
-            inventoryService.add(item);
-            return "Inventory item added successfully";
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+    public String addInventoryItem(@Argument @Valid InventoryRequest input) {
+        MedicalInventory item = new MedicalInventory(
+                input.getName(), input.getSku(), input.getQuantityOnHand(), input.getReorderLevel());
+        inventoryService.add(item);
+        return "Inventory item added successfully";
     }
 
     @MutationMapping
     public boolean deleteInventoryItem(@Argument Long id) {
-        try {
-            inventoryService.remove(id);
-            return true;
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+        inventoryService.remove(id);
+        return true;
     }
 }
