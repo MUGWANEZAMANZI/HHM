@@ -11,7 +11,7 @@ public class Patient {
     private long id;
     @Column(nullable = false)
     private String name;
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String address;
     @Column(unique = true,nullable = false)
     private String phone;

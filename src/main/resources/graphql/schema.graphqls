@@ -68,11 +68,20 @@ type MedicalInventory {
     reorderLevel: Int!
 }
 
+type PatientPage {
+    content: [Patient!]!
+    totalElements: Int!
+    totalPages: Int!
+    pageNumber: Int!
+    pageSize: Int!
+}
+
 # ─── Queries ──────────────────────────────────────────────────────────────────
 
 type Query {
     # Patient
     patients(search: String): [Patient!]!
+    patientsPaged(page: Int, size: Int): PatientPage!
     patient(id: ID!): Patient
 
     # Doctor
@@ -98,62 +107,76 @@ type Query {
     lowStockItems: [MedicalInventory!]!
 }
 
+# ─── Input types ──────────────────────────────────────────────────────────────
+
+input RegisterPatientInput {
+    name: String!
+    phone: String!
+    email: String!
+    address: String
+    district: String
+    sector: String
+    cell: String
+    village: String
+}
+
+input RegisterDoctorInput {
+    name: String!
+    departmentId: ID!
+    licenseNumber: String!
+}
+
+input BookAppointmentInput {
+    patientId: ID!
+    doctorId: ID!
+    appointmentDate: String!
+}
+
+input IssuePrescriptionInput {
+    patientId: ID!
+    doctorId: ID!
+    notes: String
+}
+
+input SubmitFeedbackInput {
+    patientId: ID!
+    feedback: String!
+    privateNotes: String
+}
+
+input AddInventoryItemInput {
+    name: String!
+    sku: String!
+    quantityOnHand: Int!
+    reorderLevel: Int!
+}
+
 # ─── Mutations ────────────────────────────────────────────────────────────────
 
 type Mutation {
     # Patient
-    registerPatient(
-        name: String!
-        phone: String!
-        email: String!
-        address: String
-        district: String
-        sector: String
-        cell: String
-        village: String
-    ): String!
+    registerPatient(input: RegisterPatientInput!): String!
     deletePatient(id: ID!): Boolean!
 
     # Doctor
-    registerDoctor(
-        name: String!
-        departmentId: ID!
-        licenseNumber: String!
-    ): String!
+    registerDoctor(input: RegisterDoctorInput!): String!
     deleteDoctor(id: ID!): Boolean!
 
     # Appointment
-    bookAppointment(
-        patientId: ID!
-        doctorId: ID!
-        appointmentDate: String!
-    ): String!
+    bookAppointment(input: BookAppointmentInput!): String!
     cancelAppointment(id: ID!): Boolean!
     deleteAppointment(id: ID!): Boolean!
 
     # Prescription
-    issuePrescription(
-        patientId: ID!
-        doctorId: ID!
-        notes: String
-    ): String!
+    issuePrescription(input: IssuePrescriptionInput!): String!
     cancelPrescription(id: ID!): Boolean!
     deletePrescription(id: ID!): Boolean!
 
     # Feedback
-    submitFeedback(
-        patientId: ID!
-        feedback: String!
-        privateNotes: String
-    ): String!
+    submitFeedback(input: SubmitFeedbackInput!): String!
     deleteFeedback(id: ID!): Boolean!
 
     # Inventory
-    addInventoryItem(
-        name: String!
-        sku: String!
-        quantityOnHand: Int!
-        reorderLevel: Int!
-    ): String!
+    addInventoryItem(input: AddInventoryItemInput!): String!
     deleteInventoryItem(id: ID!): Boolean!
 }

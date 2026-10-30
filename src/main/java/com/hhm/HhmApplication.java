@@ -19,6 +19,6 @@ public class HhmApplication {
 
     @Bean
     public CacheManager cacheManager() {
-        return new ConcurrentMapCacheManager("patients", "doctors", "appointments", "inventory", "inventory-lowstock", "feedback");
+        return new ConcurrentMapCacheManager("patients", "doctors", "appointments", "inventory", "inventory-lowstock", "feedback", "prescriptions");
     }
 }

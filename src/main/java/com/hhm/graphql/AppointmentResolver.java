@@ -1,9 +1,10 @@
 package com.hhm.graphql;
 
+import com.hhm.dto.AppointmentRequest;
 import com.hhm.model.Appointment;
 import com.hhm.model.AppointmentView;
 import com.hhm.service.AppointmentService;
-import com.hhm.service.ServiceException;
+import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -51,39 +52,22 @@ public class AppointmentResolver {
     }
 
     @MutationMapping
-    public String bookAppointment(
-            @Argument Long patientId,
-            @Argument Long doctorId,
-            @Argument String appointmentDate) {
-        try {
-            LocalDateTime date = LocalDateTime.parse(appointmentDate);
-            Appointment a = new Appointment(patientId, doctorId, date, "Scheduled");
-            appointmentService.book(a);
-            return "Appointment booked successfully";
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid date format. Use ISO 8601: 2026-11-15T09:30:00");
-        }
+    public String bookAppointment(@Argument @Valid AppointmentRequest input) {
+        LocalDateTime date = LocalDateTime.parse(input.getAppointmentDate());
+        Appointment a = new Appointment(input.getPatientId(), input.getDoctorId(), date, "Scheduled");
+        appointmentService.book(a);
+        return "Appointment booked successfully";
     }
 
     @MutationMapping
     public boolean cancelAppointment(@Argument Long id) {
-        try {
-            appointmentService.cancel(id);
-            return true;
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+        appointmentService.cancel(id);
+        return true;
     }
 
     @MutationMapping
     public boolean deleteAppointment(@Argument Long id) {
-        try {
-            appointmentService.remove(id);
-            return true;
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+        appointmentService.remove(id);
+        return true;
     }
 }

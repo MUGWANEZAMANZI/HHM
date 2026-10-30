@@ -1,8 +1,9 @@
 package com.hhm.graphql;
 
+import com.hhm.dto.FeedbackRequest;
 import com.hhm.model.PatientFeedback;
 import com.hhm.service.PatientFeedbackService;
-import com.hhm.service.ServiceException;
+import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -28,26 +29,16 @@ public class FeedbackResolver {
     }
 
     @MutationMapping
-    public String submitFeedback(
-            @Argument Long patientId,
-            @Argument String feedback,
-            @Argument String privateNotes) {
-        try {
-            PatientFeedback fb = new PatientFeedback(patientId, feedback, privateNotes, LocalDateTime.now());
-            feedbackService.submit(fb);
-            return "Feedback submitted successfully";
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+    public String submitFeedback(@Argument @Valid FeedbackRequest input) {
+        PatientFeedback fb = new PatientFeedback(
+                input.getPatientId(), input.getFeedback(), input.getPrivateNotes(), LocalDateTime.now());
+        feedbackService.submit(fb);
+        return "Feedback submitted successfully";
     }
 
     @MutationMapping
     public boolean deleteFeedback(@Argument Long id) {
-        try {
-            feedbackService.remove(id);
-            return true;
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+        feedbackService.remove(id);
+        return true;
     }
 }

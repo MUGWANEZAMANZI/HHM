@@ -1,8 +1,9 @@
 package com.hhm.graphql;
 
+import com.hhm.dto.PrescriptionRequest;
 import com.hhm.model.Prescription;
 import com.hhm.service.PrescriptionService;
-import com.hhm.service.ServiceException;
+import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -34,36 +35,22 @@ public class PrescriptionResolver {
     }
 
     @MutationMapping
-    public String issuePrescription(
-            @Argument Long patientId,
-            @Argument Long doctorId,
-            @Argument String notes) {
-        try {
-            Prescription p = new Prescription(patientId, doctorId, LocalDateTime.now(), "Active", notes);
-            prescriptionService.issue(p);
-            return "Prescription issued successfully";
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+    public String issuePrescription(@Argument @Valid PrescriptionRequest input) {
+        Prescription p = new Prescription(
+                input.getPatientId(), input.getDoctorId(), LocalDateTime.now(), "Active", input.getNotes());
+        prescriptionService.issue(p);
+        return "Prescription issued successfully";
     }
 
     @MutationMapping
     public boolean cancelPrescription(@Argument Long id) {
-        try {
-            prescriptionService.cancel(id);
-            return true;
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+        prescriptionService.cancel(id);
+        return true;
     }
 
     @MutationMapping
     public boolean deletePrescription(@Argument Long id) {
-        try {
-            prescriptionService.remove(id);
-            return true;
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+        prescriptionService.remove(id);
+        return true;
     }
 }

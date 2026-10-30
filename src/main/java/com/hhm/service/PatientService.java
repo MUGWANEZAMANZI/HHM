@@ -35,6 +35,10 @@ public class PatientService {
             throw new ServiceException(ServiceException.Type.CONFLICT,
                 "A patient with email \"" + email + "\" already exists.");
 
+        if (patientRepository.findByPhone(phone).isPresent())
+            throw new ServiceException(ServiceException.Type.CONFLICT,
+                "A patient with phone \"" + phone + "\" already exists.");
+
         Patient p = new Patient(name, phone, email);
         p.setAddress(address);
         Patient saved = patientRepository.save(p);
@@ -53,6 +57,12 @@ public class PatientService {
         if (!patientRepository.existsById(patient.getId()))
             throw new ServiceException(ServiceException.Type.NOT_FOUND,
                 "Patient with id " + patient.getId() + " not found.");
+
+        patientRepository.findByEmail(patient.getEmail()).ifPresent(found -> {
+            if (found.getId() != patient.getId())
+                throw new ServiceException(ServiceException.Type.CONFLICT,
+                    "Email \"" + patient.getEmail() + "\" is already used by another patient.");
+        });
 
         patientRepository.save(patient);
 

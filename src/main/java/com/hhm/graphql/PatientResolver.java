@@ -1,8 +1,11 @@
 package com.hhm.graphql;
 
+import com.hhm.dto.PatientPage;
+import com.hhm.dto.PatientRequest;
 import com.hhm.model.Patient;
 import com.hhm.service.PatientService;
-import com.hhm.service.ServiceException;
+import jakarta.validation.Valid;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -27,6 +30,13 @@ public class PatientResolver {
     }
 
     @QueryMapping
+    public PatientPage patientsPaged(@Argument Integer page, @Argument Integer size) {
+        int p = (page != null && page >= 0) ? page : 0;
+        int s = (size != null && size > 0) ? size : 10;
+        return new PatientPage(patientService.getAll(PageRequest.of(p, s)));
+    }
+
+    @QueryMapping
     public Patient patient(@Argument Long id) {
         return patientService.getAll().stream()
                 .filter(p -> id != null && p.getId() == id.longValue())
@@ -35,30 +45,17 @@ public class PatientResolver {
     }
 
     @MutationMapping
-    public String registerPatient(
-            @Argument String name,
-            @Argument String phone,
-            @Argument String email,
-            @Argument String address,
-            @Argument String district,
-            @Argument String sector,
-            @Argument String cell,
-            @Argument String village) {
-        try {
-            long newId = patientService.register(name, phone, email, address, district, sector, cell, village);
-            return "Patient registered with id " + newId;
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+    public String registerPatient(@Argument @Valid PatientRequest input) {
+        long newId = patientService.register(
+                input.getName(), input.getPhone(), input.getEmail(),
+                input.getAddress(), input.getDistrict(), input.getSector(),
+                input.getCell(), input.getVillage());
+        return "Patient registered with id " + newId;
     }
 
     @MutationMapping
     public boolean deletePatient(@Argument Long id) {
-        try {
-            patientService.remove(id);
-            return true;
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+        patientService.remove(id);
+        return true;
     }
 }

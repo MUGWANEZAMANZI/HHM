@@ -3,7 +3,7 @@ package com.hhm.graphql;
 import com.hhm.dto.DoctorRequest;
 import com.hhm.model.Doctor;
 import com.hhm.service.DoctorService;
-import com.hhm.service.ServiceException;
+import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -36,29 +36,14 @@ public class DoctorResolver {
     }
 
     @MutationMapping
-    public String registerDoctor(
-            @Argument String name,
-            @Argument Long departmentId,
-            @Argument String licenseNumber) {
-        try {
-            DoctorRequest req = new DoctorRequest();
-            req.setName(name);
-            req.setDepartmentId(departmentId);
-            req.setLicenseNumber(licenseNumber);
-            doctorService.register(req);
-            return "Doctor registered successfully";
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+    public String registerDoctor(@Argument @Valid DoctorRequest input) {
+        doctorService.register(input);
+        return "Doctor registered successfully";
     }
 
     @MutationMapping
     public boolean deleteDoctor(@Argument Long id) {
-        try {
-            doctorService.remove(id);
-            return true;
-        } catch (ServiceException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+        doctorService.remove(id);
+        return true;
     }
 }
