@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,6 +37,8 @@ public class DepartmentController {
         return ResponseEntity.ok(ApiResult.success(result.size() + " department(s) found", result));
     }
 
+
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping
     @Operation(
         summary = "Create a new department",
@@ -52,6 +55,7 @@ public class DepartmentController {
                 .body(ApiResult.created("Department \"" + created.getName() + "\" created with id " + created.getId(), created));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/{id}")
     @Operation(
         summary = "Delete a department",

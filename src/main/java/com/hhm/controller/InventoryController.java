@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -54,6 +55,7 @@ public class InventoryController {
         return ResponseEntity.ok(ApiResult.success(msg, page));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('NURSE') or hasAuthority('RECEPTIONIST')")
     @GetMapping("/low-stock")
     @Operation(summary = "List low-stock items",
                description = "Returns items whose quantity on hand is at or below the reorder level.")
@@ -65,6 +67,7 @@ public class InventoryController {
                 ApiResult.success("Low-stock items retrieved", inventoryService.getLowStock()));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('NURSE') or hasAuthority('RECEPTIONIST')")
     @PostMapping
     @Operation(summary = "Add an inventory item",
                description = "Creates a new medical inventory entry. SKU must be unique.")
@@ -82,6 +85,7 @@ public class InventoryController {
                 .body(ApiResult.created("Inventory item added successfully", null));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('NURSE') or hasAuthority('RECEPTIONIST')")
     @PutMapping("/{id}")
     @Operation(summary = "Update an inventory item",
                description = "Updates name, SKU, quantity, and reorder level.")
@@ -101,6 +105,7 @@ public class InventoryController {
         return ResponseEntity.ok(ApiResult.success("Inventory item " + id + " updated", null));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('RECEPTIONIST')")
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete an inventory item",
                description = "Permanently removes an inventory item and its child medical items.")

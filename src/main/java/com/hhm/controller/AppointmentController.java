@@ -16,10 +16,12 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+
 
 @RestController
 @RequestMapping("/api/v1/appointments")
@@ -31,6 +33,7 @@ public class AppointmentController {
     public AppointmentController(AppointmentService appointmentService) {
         this.appointmentService = appointmentService;
     }
+
 
     @GetMapping
     @Operation(summary = "List appointments",
@@ -56,6 +59,7 @@ public class AppointmentController {
         return ResponseEntity.ok(ApiResult.success(msg, page));
     }
 
+    @PreAuthorize("hasAuthority('PATIENT') or hasAuthority('RECEPTIONIST')")
     @PostMapping
     @Operation(summary = "Book an appointment",
                description = "Schedules a new appointment. Date must be ISO 8601 and in the future.")
@@ -71,6 +75,7 @@ public class AppointmentController {
         return ResponseEntity.status(201)
                 .body(ApiResult.created("Appointment booked successfully", null));
     }
+
 
     @PutMapping("/{id}")
     @Operation(summary = "Reschedule an appointment",
@@ -89,6 +94,7 @@ public class AppointmentController {
         return ResponseEntity.ok(ApiResult.success("Appointment " + id + " rescheduled", null));
     }
 
+
     @PatchMapping("/{id}/cancel")
     @Operation(summary = "Cancel an appointment")
     @ApiResponses({
@@ -96,11 +102,15 @@ public class AppointmentController {
         @ApiResponse(responseCode = "404", description = "Appointment not found"),
         @ApiResponse(responseCode = "409", description = "Appointment is already cancelled")
     })
+
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('RECEPTIONIST')")
     public ResponseEntity<ApiResult<Void>> cancelAppointment(@PathVariable long id) {
         appointmentService.cancel(id);
         return ResponseEntity.ok(ApiResult.success("Appointment " + id + " cancelled", null));
     }
 
+
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete an appointment")
     @ApiResponses({

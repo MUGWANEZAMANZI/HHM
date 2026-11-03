@@ -2,8 +2,11 @@ package com.hhm.controller;
 
 import com.hhm.dto.ApiResult;
 import com.hhm.dto.DoctorRequest;
+import com.hhm.dto.RegisterRequest;
+import com.hhm.dto.Type;
 import com.hhm.model.Department;
 import com.hhm.model.Doctor;
+import com.hhm.service.AuthService;
 import com.hhm.service.DoctorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -12,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,9 +26,11 @@ import java.util.List;
 public class DoctorController {
 
     private final DoctorService doctorService;
+    private final AuthService authService;
 
-    public DoctorController(DoctorService doctorService) {
+    public DoctorController(DoctorService doctorService, AuthService authService) {
         this.doctorService = doctorService;
+        this.authService = authService;
     }
 
     @GetMapping
@@ -42,26 +48,31 @@ public class DoctorController {
         return ResponseEntity.ok(ApiResult.success("Doctors retrieved", result));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping
     @Operation(summary = "Register a new doctor",
-               description = "Creates a doctor record. License number must be unique and department must exist.")
+               description = "Creates a doctor account via UserFactory. Requires email, password, name, licenseNumber, departmentId.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Doctor registered successfully"),
-        @ApiResponse(responseCode = "409", description = "License number is already taken"),
+        @ApiResponse(responseCode = "409", description = "Email already in use"),
         @ApiResponse(responseCode = "404", description = "Department ID does not exist"),
         @ApiResponse(responseCode = "422", description = "Validation failed — see message field")
     })
-    public ResponseEntity<ApiResult<Void>> createDoctor(@Valid @RequestBody DoctorRequest req) {
-        doctorService.register(req);
+    public ResponseEntity<ApiResult<Void>> createDoctor(@Valid @RequestBody RegisterRequest req) {
+        req.setType(Type.DOCTOR);   // admin always creates doctors here
+        authService.createUser(req);
         return ResponseEntity.status(201)
                 .body(ApiResult.created("Doctor registered successfully", null));
     }
 
+    // ADMIN can update any doctor. A DOCTOR can only update their own account (id must match their user id).
+    @PreAuthorize("hasAuthority('ADMIN') or (hasAuthority('DOCTOR') and authentication.principal.id == #id)")
     @PutMapping("/{id}")
     @Operation(summary = "Update a doctor",
-               description = "Updates name, departmentId, and licenseNumber.")
+               description = "Updates name, departmentId, and licenseNumber. Doctors can only update their own record.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Doctor updated successfully"),
+        @ApiResponse(responseCode = "403", description = "Not allowed to update another doctor's account"),
         @ApiResponse(responseCode = "404", description = "Doctor not found"),
         @ApiResponse(responseCode = "422", description = "Validation failed")
     })
@@ -75,6 +86,7 @@ public class DoctorController {
         return ResponseEntity.ok(ApiResult.success("Doctor " + id + " updated", null));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a doctor",
                description = "Removes the doctor. Fails if they have scheduled appointments.")

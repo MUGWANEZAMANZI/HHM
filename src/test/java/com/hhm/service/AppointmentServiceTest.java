@@ -2,6 +2,7 @@ package com.hhm.service;
 
 import com.hhm.model.Appointment;
 import com.hhm.repository.AppointmentRepository;
+import static org.mockito.ArgumentMatchers.any;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -24,18 +25,18 @@ class AppointmentServiceTest {
 
     @Test
     void book_futureDate_savesAppointment() {
-        Appointment a = new Appointment(1L, 2L, LocalDateTime.now().plusDays(1), "Scheduled");
+        LocalDateTime future = LocalDateTime.now().plusDays(1);
 
-        appointmentService.book(a);
+        appointmentService.book(1L, 2L, future, "Scheduled");
 
-        then(appointmentRepository).should().save(a);
+        then(appointmentRepository).should().save(any(Appointment.class));
     }
 
     @Test
     void book_pastDate_throws() {
-        Appointment a = new Appointment(1L, 2L, LocalDateTime.now().minusHours(1), "Scheduled");
+        LocalDateTime past = LocalDateTime.now().minusHours(1);
 
-        assertThatThrownBy(() -> appointmentService.book(a))
+        assertThatThrownBy(() -> appointmentService.book(1L, 2L, past, "Scheduled"))
             .isInstanceOf(ServiceException.class)
             .hasMessageContaining("past");
     }
@@ -44,7 +45,9 @@ class AppointmentServiceTest {
 
     @Test
     void cancel_scheduledAppointment_setsStatusAndSaves() {
-        Appointment existing = new Appointment(1L, 2L, LocalDateTime.now().plusDays(1), "Scheduled");
+        Appointment existing = new Appointment();
+        existing.setAppointmentDate(LocalDateTime.now().plusDays(1));
+        existing.setStatus("Scheduled");
         given(appointmentRepository.findById(1L)).willReturn(Optional.of(existing));
 
         appointmentService.cancel(1L);
@@ -65,7 +68,9 @@ class AppointmentServiceTest {
 
     @Test
     void cancel_alreadyCancelled_throwsConflict() {
-        Appointment existing = new Appointment(1L, 2L, LocalDateTime.now().minusDays(1), "Cancelled");
+        Appointment existing = new Appointment();
+        existing.setAppointmentDate(LocalDateTime.now().minusDays(1));
+        existing.setStatus("Cancelled");
         given(appointmentRepository.findById(1L)).willReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> appointmentService.cancel(1L))
@@ -99,19 +104,19 @@ class AppointmentServiceTest {
 
     @Test
     void reschedule_futureDate_saves() {
-        Appointment a = new Appointment(1L, 2L, LocalDateTime.now().plusDays(2), "Rescheduled");
-        given(appointmentRepository.existsById(0L)).willReturn(true);
+        LocalDateTime future = LocalDateTime.now().plusDays(2);
+        given(appointmentRepository.existsById(1L)).willReturn(true);
 
-        appointmentService.reschedule(a);
+        appointmentService.reschedule(1L, 1L, 2L, future);
 
-        then(appointmentRepository).should().save(a);
+        then(appointmentRepository).should().save(any(Appointment.class));
     }
 
     @Test
     void reschedule_pastDate_throws() {
-        Appointment a = new Appointment(1L, 2L, LocalDateTime.now().minusDays(1), "Rescheduled");
+        LocalDateTime past = LocalDateTime.now().minusDays(1);
 
-        assertThatThrownBy(() -> appointmentService.reschedule(a))
+        assertThatThrownBy(() -> appointmentService.reschedule(1L, 1L, 2L, past))
             .isInstanceOf(ServiceException.class)
             .hasMessageContaining("past");
     }

@@ -3,6 +3,7 @@ package com.hhm.controller;
 import com.hhm.dto.ApiResult;
 import com.hhm.service.ServiceException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -37,6 +38,11 @@ public class GlobalExceptionHandler {
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining("; "));
         return ResponseEntity.status(422).body(ApiResult.error(422, errors));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResult<?>> handleAccessDenied(AccessDeniedException e) {
+        return ResponseEntity.status(403).body(ApiResult.error(403, "Access denied"));
     }
 
     @ExceptionHandler(BadCredentialsException.class)

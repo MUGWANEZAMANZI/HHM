@@ -56,7 +56,7 @@ class MedicalInventoryServiceTest {
 
         inventoryService.remove(1L);
 
-        then(medicalItemRepository).should().deleteByInventoryId(1L);
+        then(medicalItemRepository).should().deleteByInventory_Id(1L);
         then(inventoryRepository).should().deleteById(1L);
     }
 

@@ -66,10 +66,11 @@ public class UserFactory {
         return p;
     }
 
-    private User buildAdmin(RegisterRequest req) {
-        User u = new User();
-        fillBase(u, req);
-        return u;
+    private Admin buildAdmin(RegisterRequest req) {
+        Admin a = new Admin();
+        fillBase(a, req);
+        a.setName(req.getName());
+        return a;
     }
 
     private void fillBase(User user, RegisterRequest req) {

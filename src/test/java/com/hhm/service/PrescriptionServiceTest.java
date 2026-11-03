@@ -1,6 +1,9 @@
 package com.hhm.service;
 
+import com.hhm.model.Doctor;
+import com.hhm.model.Patient;
 import com.hhm.model.Prescription;
+import com.hhm.repository.DoctorRepository;
 import com.hhm.repository.PatientRepository;
 import com.hhm.repository.PrescriptionRepository;
 import org.junit.jupiter.api.Test;
@@ -21,26 +24,38 @@ class PrescriptionServiceTest {
 
     @Mock PrescriptionRepository prescriptionRepository;
     @Mock PatientRepository patientRepository;
+    @Mock DoctorRepository doctorRepository;
     @InjectMocks PrescriptionService prescriptionService;
+
+    private Patient stubPatient(long id) {
+        Patient p = new Patient("Name", "0780000001");
+        p.setId(id);
+        return p;
+    }
+
+    private Doctor stubDoctor(long id) {
+        Doctor d = new Doctor("Dr. Name", new com.hhm.model.Department(), "LIC");
+        d.setId(id);
+        return d;
+    }
 
     // ─── issue ───────────────────────────────────────────────────────────────
 
     @Test
     void issue_success_savesPrescription() {
-        Prescription p = new Prescription(1L, 2L, LocalDateTime.now(), "Active", "Take after meals");
-        given(patientRepository.existsById(1L)).willReturn(true);
+        given(patientRepository.findById(1L)).willReturn(Optional.of(stubPatient(1L)));
+        given(doctorRepository.findById(2L)).willReturn(Optional.of(stubDoctor(2L)));
 
-        prescriptionService.issue(p);
+        prescriptionService.issue(1L, 2L, LocalDateTime.now(), "Active", "Take after meals");
 
-        then(prescriptionRepository).should().save(p);
+        then(prescriptionRepository).should().save(any(Prescription.class));
     }
 
     @Test
     void issue_patientNotFound_throws() {
-        Prescription p = new Prescription(99L, 2L, LocalDateTime.now(), "Active", null);
-        given(patientRepository.existsById(99L)).willReturn(false);
+        given(patientRepository.findById(99L)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> prescriptionService.issue(p))
+        assertThatThrownBy(() -> prescriptionService.issue(99L, 2L, LocalDateTime.now(), "Active", null))
             .isInstanceOf(ServiceException.class)
             .extracting(e -> ((ServiceException) e).getType())
             .isEqualTo(ServiceException.Type.NOT_FOUND);
@@ -50,7 +65,7 @@ class PrescriptionServiceTest {
 
     @Test
     void cancel_active_setsStatusAndSaves() {
-        Prescription p = new Prescription(1L, 2L, LocalDateTime.now(), "Active", null);
+        Prescription p = new Prescription(stubPatient(1L), stubDoctor(2L), LocalDateTime.now(), "Active", null);
         given(prescriptionRepository.findById(1L)).willReturn(Optional.of(p));
 
         prescriptionService.cancel(1L);
@@ -71,7 +86,7 @@ class PrescriptionServiceTest {
 
     @Test
     void cancel_alreadyCancelled_throwsConflict() {
-        Prescription p = new Prescription(1L, 2L, LocalDateTime.now(), "Cancelled", null);
+        Prescription p = new Prescription(stubPatient(1L), stubDoctor(2L), LocalDateTime.now(), "Cancelled", null);
         given(prescriptionRepository.findById(1L)).willReturn(Optional.of(p));
 
         assertThatThrownBy(() -> prescriptionService.cancel(1L))
@@ -105,10 +120,9 @@ class PrescriptionServiceTest {
 
     @Test
     void update_notFound_throws() {
-        Prescription p = new Prescription(1L, 2L, LocalDateTime.now(), "Active", null);
-        given(prescriptionRepository.existsById(0L)).willReturn(false);
+        given(prescriptionRepository.findById(99L)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> prescriptionService.update(p))
+        assertThatThrownBy(() -> prescriptionService.update(99L, 1L, 2L, LocalDateTime.now(), "Active", null))
             .isInstanceOf(ServiceException.class)
             .extracting(e -> ((ServiceException) e).getType())
             .isEqualTo(ServiceException.Type.NOT_FOUND);
