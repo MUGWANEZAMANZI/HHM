@@ -2,6 +2,7 @@ package com.hhm.service;
 
 import com.hhm.dto.DoctorRequest;
 import com.hhm.model.Appointment;
+import com.hhm.model.Department;
 import com.hhm.model.Doctor;
 import com.hhm.repository.AppointmentRepository;
 import com.hhm.repository.DepartmentRepository;
@@ -41,7 +42,11 @@ public class DoctorService {
             throw new ServiceException(ServiceException.Type.CONFLICT,
                 "License number \"" + req.getLicenseNumber() + "\" is already registered.");
 
-        doctorRepository.save(new Doctor(req.getName(), req.getDepartmentId(), req.getLicenseNumber()));
+        Department department = departmentRepository.findById(req.getDepartmentId())
+                .orElseThrow(() -> new ServiceException(ServiceException.Type.NOT_FOUND,
+                        "Department with id " + req.getDepartmentId() + " not found."));
+
+        doctorRepository.save(new Doctor(req.getName(), department, req.getLicenseNumber()));
     }
 
     @Transactional
@@ -60,8 +65,7 @@ public class DoctorService {
             throw new ServiceException(ServiceException.Type.NOT_FOUND,
                 "Doctor with id " + doctorId + " not found.");
 
-        // Business rule: cannot delete a doctor who has Scheduled appointments
-        List<Appointment> active = appointmentRepository.findByDoctorId(doctorId).stream()
+        List<Appointment> active = appointmentRepository.findByDoctor_Id(doctorId).stream()
             .filter(a -> "Scheduled".equals(a.getStatus()))
             .toList();
         if (!active.isEmpty())
@@ -85,5 +89,12 @@ public class DoctorService {
             .filter(d -> d.getName().toLowerCase().contains(lower)
                       || d.getLicenseNumber().toLowerCase().contains(lower))
             .toList();
+    }
+
+    @Transactional
+    public Doctor findById(long doctorId) throws ServiceException {
+        return doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new ServiceException(ServiceException.Type.NOT_FOUND,
+                        "Doctor with id " + doctorId + " not found."));
     }
 }

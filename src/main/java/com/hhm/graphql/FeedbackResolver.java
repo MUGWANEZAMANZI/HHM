@@ -30,9 +30,8 @@ public class FeedbackResolver {
 
     @MutationMapping
     public String submitFeedback(@Argument @Valid FeedbackRequest input) {
-        PatientFeedback fb = new PatientFeedback(
-                input.getPatientId(), input.getFeedback(), input.getPrivateNotes(), LocalDateTime.now());
-        feedbackService.submit(fb);
+        feedbackService.submit(input.getPatientId(), input.getFeedback(),
+                               input.getPrivateNotes(), LocalDateTime.now());
         return "Feedback submitted successfully";
     }
 

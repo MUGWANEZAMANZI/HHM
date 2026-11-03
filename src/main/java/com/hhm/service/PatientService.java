@@ -44,7 +44,7 @@ public class PatientService {
         Patient saved = patientRepository.save(p);
 
         if (district != null && !district.isBlank())
-            addressRepository.save(new PatientAddress(saved.getId(), district, sector, cell, village));
+            addressRepository.save(new PatientAddress(saved, district, sector, cell, village));
 
         return saved.getId();
     }
@@ -67,8 +67,8 @@ public class PatientService {
         patientRepository.save(patient);
 
         if (district != null && !district.isBlank()) {
-            PatientAddress addr = new PatientAddress(patient.getId(), district, sector, cell, village);
-            addressRepository.findByPatientId(patient.getId())
+            PatientAddress addr = new PatientAddress(patient, district, sector, cell, village);
+            addressRepository.findByPatient_Id(patient.getId())
                              .ifPresent(existing -> addr.setId(existing.getId()));
             addressRepository.save(addr);
         }
@@ -81,7 +81,7 @@ public class PatientService {
             throw new ServiceException(ServiceException.Type.NOT_FOUND,
                 "Patient with id " + patientId + " not found.");
 
-        addressRepository.deleteByPatientId(patientId);
+        addressRepository.deleteByPatient_Id(patientId);
         patientRepository.deleteById(patientId);
     }
 

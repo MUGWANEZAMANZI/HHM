@@ -36,9 +36,8 @@ public class PrescriptionResolver {
 
     @MutationMapping
     public String issuePrescription(@Argument @Valid PrescriptionRequest input) {
-        Prescription p = new Prescription(
-                input.getPatientId(), input.getDoctorId(), LocalDateTime.now(), "Active", input.getNotes());
-        prescriptionService.issue(p);
+        prescriptionService.issue(input.getPatientId(), input.getDoctorId(),
+                                  LocalDateTime.now(), "Active", input.getNotes());
         return "Prescription issued successfully";
     }
 

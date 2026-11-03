@@ -1,8 +1,10 @@
 package com.hhm.controller;
 
+import com.hhm.dto.AdmitPatientRequest;
 import com.hhm.dto.ApiResult;
 import com.hhm.dto.PatientRequest;
 import com.hhm.model.Patient;
+import com.hhm.service.PatientAdmissionService;
 import com.hhm.service.PatientService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -10,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -25,9 +28,11 @@ import java.util.List;
 public class PatientController {
 
     private final PatientService patientService;
+    private final PatientAdmissionService admissionService;
 
-    PatientController(PatientService patientService) {
+    PatientController(PatientService patientService, PatientAdmissionService admissionService) {
         this.patientService = patientService;
+        this.admissionService = admissionService;
     }
 
     @GetMapping
@@ -42,7 +47,7 @@ public class PatientController {
     public ResponseEntity<ApiResult<Page<Patient>>> getAllPatients(
             @Parameter(description = "Filter by name, email, or phone")
             @RequestParam(required = false) String search,
-            @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+            @ParameterObject @PageableDefault(size = 20, sort = "name") Pageable pageable) {
 
         if (search != null && !search.isBlank()) {
             List<Patient> results = patientService.search(search);
@@ -54,6 +59,26 @@ public class PatientController {
         String msg = String.format("Page %d — %d of %d patients",
             pageable.getPageNumber(), page.getNumberOfElements(), page.getTotalElements());
         return ResponseEntity.ok(ApiResult.success(msg, page));
+    }
+
+    @PostMapping("/admit")
+    @Operation(
+        summary     = "Admit a patient (transactional demo)",
+        description = "Registers the patient AND books their first appointment in one atomic transaction. "
+                    + "If the doctor does not exist or the date is in the past, "
+                    + "the patient record is rolled back too — neither row is saved."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Patient admitted and appointment booked"),
+        @ApiResponse(responseCode = "404", description = "Doctor not found — transaction rolled back"),
+        @ApiResponse(responseCode = "422", description = "Validation failed")
+    })
+    public ResponseEntity<ApiResult<Void>> admitPatient(@Valid @RequestBody AdmitPatientRequest req) {
+        long id = admissionService.admitPatient(
+            req.getName(), req.getPhone(), req.getEmail(),
+            req.getDoctorId(), req.getAppointmentDate());
+        return ResponseEntity.status(201)
+                .body(ApiResult.created("Patient admitted with id " + id + " — appointment booked", null));
     }
 
     @PostMapping

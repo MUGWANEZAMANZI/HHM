@@ -1,7 +1,6 @@
 package com.hhm.graphql;
 
 import com.hhm.dto.AppointmentRequest;
-import com.hhm.model.Appointment;
 import com.hhm.model.AppointmentView;
 import com.hhm.service.AppointmentService;
 import jakarta.validation.Valid;
@@ -54,8 +53,7 @@ public class AppointmentResolver {
     @MutationMapping
     public String bookAppointment(@Argument @Valid AppointmentRequest input) {
         LocalDateTime date = LocalDateTime.parse(input.getAppointmentDate());
-        Appointment a = new Appointment(input.getPatientId(), input.getDoctorId(), date, "Scheduled");
-        appointmentService.book(a);
+        appointmentService.book(input.getPatientId(), input.getDoctorId(), date, "Scheduled");
         return "Appointment booked successfully";
     }
 

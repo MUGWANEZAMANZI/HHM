@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -33,15 +34,14 @@ public class AppointmentController {
 
     @GetMapping
     @Operation(summary = "List appointments",
-               description = "Returns paginated appointments. Filter by status with ?status=Scheduled. "
-                           + "Sort examples: ?sort=appointmentDate,desc | ?sort=status,asc")
+               description = "Returns paginated appointments. Filter by status with ?status=Scheduled.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Appointments returned successfully")
     })
     public ResponseEntity<ApiResult<Page<Appointment>>> getAllAppointments(
             @Parameter(description = "Filter by status: Scheduled | Completed | Cancelled | Rescheduled")
             @RequestParam(required = false) String status,
-            @PageableDefault(size = 20, sort = "appointmentDate") Pageable pageable) {
+            @ParameterObject @PageableDefault(size = 20, sort = "appointmentDate") Pageable pageable) {
 
         if (status != null && !status.isBlank()) {
             List<Appointment> results = appointmentService.findByStatus(status);
@@ -65,11 +65,9 @@ public class AppointmentController {
         @ApiResponse(responseCode = "404", description = "Patient or doctor not found")
     })
     public ResponseEntity<ApiResult<Void>> bookAppointment(@Valid @RequestBody AppointmentRequest req) {
-        // @FutureDateTime already validated format + future — parse is safe here
         LocalDateTime date = LocalDateTime.parse(req.getAppointmentDate());
-        Appointment a = new Appointment(req.getPatientId(), req.getDoctorId(), date,
-                req.getStatus() != null ? req.getStatus() : "Scheduled");
-        appointmentService.book(a);
+        String status = req.getStatus() != null ? req.getStatus() : "Scheduled";
+        appointmentService.book(req.getPatientId(), req.getDoctorId(), date, status);
         return ResponseEntity.status(201)
                 .body(ApiResult.created("Appointment booked successfully", null));
     }
@@ -87,37 +85,29 @@ public class AppointmentController {
             @PathVariable long id,
             @Valid @RequestBody AppointmentRequest req) {
         LocalDateTime date = LocalDateTime.parse(req.getAppointmentDate());
-        Appointment a = new Appointment(req.getPatientId(), req.getDoctorId(), date, "Rescheduled");
-        a.setId(id);
-        appointmentService.reschedule(a);
+        appointmentService.reschedule(id, req.getPatientId(), req.getDoctorId(), date);
         return ResponseEntity.ok(ApiResult.success("Appointment " + id + " rescheduled", null));
     }
 
     @PatchMapping("/{id}/cancel")
-    @Operation(summary = "Cancel an appointment",
-               description = "Sets the appointment status to Cancelled.")
+    @Operation(summary = "Cancel an appointment")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Appointment cancelled"),
         @ApiResponse(responseCode = "404", description = "Appointment not found"),
         @ApiResponse(responseCode = "409", description = "Appointment is already cancelled")
     })
-    public ResponseEntity<ApiResult<Void>> cancelAppointment(
-            @Parameter(description = "ID of the appointment to cancel", example = "1")
-            @PathVariable long id) {
+    public ResponseEntity<ApiResult<Void>> cancelAppointment(@PathVariable long id) {
         appointmentService.cancel(id);
         return ResponseEntity.ok(ApiResult.success("Appointment " + id + " cancelled", null));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete an appointment",
-               description = "Permanently removes an appointment record.")
+    @Operation(summary = "Delete an appointment")
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Appointment deleted — no content"),
         @ApiResponse(responseCode = "404", description = "Appointment not found")
     })
-    public ResponseEntity<Void> deleteAppointment(
-            @Parameter(description = "ID of the appointment to delete", example = "1")
-            @PathVariable long id) {
+    public ResponseEntity<Void> deleteAppointment(@PathVariable long id) {
         appointmentService.remove(id);
         return ResponseEntity.noContent().build();
     }
