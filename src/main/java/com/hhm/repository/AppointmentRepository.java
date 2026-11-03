@@ -11,16 +11,12 @@ import java.util.List;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
-    // Derived queries
-    List<Appointment> findByPatientId(long patientId);
-    List<Appointment> findByDoctorId(long doctorId);
+    List<Appointment> findByDoctor_Id(long doctorId);
     List<Appointment> findByStatus(String status);
 
-    // JPQL — appointments by status sorted by date descending
     @Query("SELECT a FROM Appointment a WHERE a.status = :status ORDER BY a.appointmentDate DESC")
     List<Appointment> findByStatusSorted(@Param("status") String status);
 
-    // Native SQL — full JOIN view with patient, doctor, department names
     @Query(value = """
             SELECT a.id, a.patient_id, a.doctor_id, a.appointment_date, a.status,
                    p.name  AS patient_name,  p.phone AS patient_phone,
@@ -33,7 +29,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             """, nativeQuery = true)
     List<Object[]> findAllWithDetails();
 
-    // Pagination
     Page<Appointment> findAll(Pageable pageable);
-    Page<Appointment> findByPatientId(long patientId, Pageable pageable);
+    Page<Appointment> findByPatient_Id(long patientId, Pageable pageable);
 }

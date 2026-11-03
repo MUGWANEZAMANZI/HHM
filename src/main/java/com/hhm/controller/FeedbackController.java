@@ -29,12 +29,12 @@ public class FeedbackController {
 
     @GetMapping
     @Operation(summary = "List all feedback",
-               description = "Returns all patient feedback. Pass ?search= to filter by patient name.")
+               description = "Returns all patient feedback. Pass ?search= to filter by keyword.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Feedback returned successfully")
     })
     public ResponseEntity<ApiResult<List<PatientFeedback>>> getAllFeedback(
-            @Parameter(description = "Filter by patient name")
+            @Parameter(description = "Filter by feedback text keyword")
             @RequestParam(required = false) String search) {
         List<PatientFeedback> result = (search != null && !search.isBlank())
                 ? feedbackService.search(search)
@@ -51,10 +51,8 @@ public class FeedbackController {
         @ApiResponse(responseCode = "422", description = "Validation failed — feedback text is required")
     })
     public ResponseEntity<ApiResult<Void>> submitFeedback(@Valid @RequestBody FeedbackRequest req) {
-        PatientFeedback fb = new PatientFeedback(
-                req.getPatientId(), req.getFeedback(),
-                req.getPrivateNotes(), LocalDateTime.now());
-        feedbackService.submit(fb);
+        feedbackService.submit(req.getPatientId(), req.getFeedback(),
+                               req.getPrivateNotes(), LocalDateTime.now());
         return ResponseEntity.status(201)
                 .body(ApiResult.created("Feedback submitted successfully", null));
     }

@@ -8,13 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface PrescriptionRepository extends JpaRepository<Prescription, Long> {
-
-    // Derived queries
-    List<Prescription> findByPatientId(long patientId);
-    List<Prescription> findByDoctorId(long doctorId);
+    List<Prescription> findByPatient_Id(long patientId);
+    List<Prescription> findByDoctor_Id(long doctorId);
     List<Prescription> findByStatus(String status);
-    List<Prescription> findByPatientIdAndStatus(long patientId, String status);
-
-    // Pagination
-    Page<Prescription> findByPatientId(long patientId, Pageable pageable);
+    List<Prescription> findByPatient_IdAndStatus(long patientId, String status);
+    Page<Prescription> findByPatient_Id(long patientId, Pageable pageable);
 }

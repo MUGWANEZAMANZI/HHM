@@ -1,9 +1,6 @@
 package com.hhm.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.ToString;
 
 @Entity
@@ -12,7 +9,11 @@ public class PatientAddress {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
-    private long patientId;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "patient_id")
+    private Patient patient;
+
     private String district;
     private String sector;
     private String cell;
@@ -20,8 +21,8 @@ public class PatientAddress {
 
     public PatientAddress() {}
 
-    public PatientAddress(long patientId, String district, String sector, String cell, String village) {
-        this.patientId = patientId;
+    public PatientAddress(Patient patient, String district, String sector, String cell, String village) {
+        this.patient = patient;
         this.district = district;
         this.sector = sector;
         this.cell = cell;
@@ -31,8 +32,9 @@ public class PatientAddress {
     public long getId() { return id; }
     public void setId(long id) { this.id = id; }
 
-    public long getPatientId() { return patientId; }
-    public void setPatientId(long patientId) { this.patientId = patientId; }
+    public Patient getPatient() { return patient; }
+    public void setPatient(Patient patient) { this.patient = patient; }
+    public long getPatientId() { return patient != null ? patient.getId() : 0; }
 
     public String getDistrict() { return district; }
     public void setDistrict(String district) { this.district = district; }

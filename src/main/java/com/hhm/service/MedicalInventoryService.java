@@ -49,7 +49,7 @@ public class MedicalInventoryService {
             throw new ServiceException(ServiceException.Type.NOT_FOUND,
                 "Inventory item with id " + itemId + " not found.");
 
-        medicalItemRepository.deleteByInventoryId(itemId);
+        medicalItemRepository.deleteByInventory_Id(itemId);
         inventoryRepository.deleteById(itemId);
     }
 

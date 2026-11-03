@@ -8,11 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface PatientFeedbackRepository extends JpaRepository<PatientFeedback, Long> {
-
-    // Derived queries
-    List<PatientFeedback> findByPatientId(long patientId);
+    List<PatientFeedback> findByPatient_Id(long patientId);
     List<PatientFeedback> findByFeedbackContainingIgnoreCase(String keyword);
-
-    // Pagination
-    Page<PatientFeedback> findByPatientId(long patientId, Pageable pageable);
+    Page<PatientFeedback> findByPatient_Id(long patientId, Pageable pageable);
 }

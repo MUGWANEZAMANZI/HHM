@@ -1,9 +1,6 @@
 package com.hhm.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.ToString;
 
 @Entity
@@ -12,14 +9,18 @@ public class MedicalItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
-    private long inventoryId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "inventory_id")
+    private MedicalInventory inventory;
+
     private int quantity;
     private String category;
 
     public MedicalItem() {}
 
-    public MedicalItem(long inventoryId, int quantity, String category) {
-        this.inventoryId = inventoryId;
+    public MedicalItem(MedicalInventory inventory, int quantity, String category) {
+        this.inventory = inventory;
         this.quantity = quantity;
         this.category = category;
     }
@@ -27,8 +28,9 @@ public class MedicalItem {
     public long getId() { return id; }
     public void setId(long id) { this.id = id; }
 
-    public long getInventoryId() { return inventoryId; }
-    public void setInventoryId(long inventoryId) { this.inventoryId = inventoryId; }
+    public MedicalInventory getInventory() { return inventory; }
+    public void setInventory(MedicalInventory inventory) { this.inventory = inventory; }
+    public long getInventoryId() { return inventory != null ? inventory.getId() : 0; }
 
     public int getQuantity() { return quantity; }
     public void setQuantity(int quantity) { this.quantity = quantity; }

@@ -1,5 +1,6 @@
 package com.hhm.service;
 
+import com.hhm.model.Patient;
 import com.hhm.model.PatientFeedback;
 import com.hhm.repository.PatientFeedbackRepository;
 import com.hhm.repository.PatientRepository;
@@ -8,6 +9,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -24,14 +26,14 @@ public class PatientFeedbackService {
 
     @Transactional
     @CacheEvict(value = "feedback", allEntries = true)
-    public void submit(PatientFeedback feedback) throws ServiceException {
-        // Business rule: feedback text must not be empty, patient must exist
-        if (feedback.getFeedback() == null || feedback.getFeedback().isBlank())
+    public void submit(long patientId, String feedback, String privateNotes, LocalDateTime issuedAt)
+            throws ServiceException {
+        if (feedback == null || feedback.isBlank())
             throw new ServiceException("Feedback text cannot be empty.");
-        if (!patientRepository.existsById(feedback.getPatientId()))
-            throw new ServiceException(ServiceException.Type.NOT_FOUND,
-                "Cannot submit feedback: patient with id " + feedback.getPatientId() + " not found.");
-        feedbackRepository.save(feedback);
+        Patient patient = patientRepository.findById(patientId)
+            .orElseThrow(() -> new ServiceException(ServiceException.Type.NOT_FOUND,
+                "Cannot submit feedback: patient with id " + patientId + " not found."));
+        feedbackRepository.save(new PatientFeedback(patient, feedback, privateNotes, issuedAt));
     }
 
     @Transactional
@@ -58,6 +60,6 @@ public class PatientFeedbackService {
     @Transactional(readOnly = true)
     @Cacheable(value = "feedback", key = "#patientId")
     public List<PatientFeedback> getByPatient(long patientId) {
-        return feedbackRepository.findByPatientId(patientId);
+        return feedbackRepository.findByPatient_Id(patientId);
     }
 }

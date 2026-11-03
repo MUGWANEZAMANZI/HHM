@@ -7,11 +7,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PatientAddressRepository extends JpaRepository<PatientAddress, Long> {
-
-    // Derived queries
-    Optional<PatientAddress> findByPatientId(long patientId);
+    Optional<PatientAddress> findByPatient_Id(long patientId);
     List<PatientAddress> findByDistrict(String district);
     List<PatientAddress> findBySector(String sector);
-
-    void deleteByPatientId(long patientId);
+    void deleteByPatient_Id(long patientId);
 }

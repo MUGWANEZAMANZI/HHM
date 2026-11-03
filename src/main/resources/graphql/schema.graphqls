@@ -90,6 +90,7 @@ type Query {
 
     # Department
     departments: [Department!]!
+    department(id: ID!): Department
 
     # Appointment
     appointments(search: String, status: String): [AppointmentView!]!
@@ -157,6 +158,10 @@ type Mutation {
     # Patient
     registerPatient(input: RegisterPatientInput!): String!
     deletePatient(id: ID!): Boolean!
+
+    # Department
+    createDepartment(name: String!): String!
+    deleteDepartment(id: ID!): Boolean!
 
     # Doctor
     registerDoctor(input: RegisterDoctorInput!): String!

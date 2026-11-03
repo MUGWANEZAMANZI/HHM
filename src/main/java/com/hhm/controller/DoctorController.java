@@ -2,6 +2,7 @@ package com.hhm.controller;
 
 import com.hhm.dto.ApiResult;
 import com.hhm.dto.DoctorRequest;
+import com.hhm.model.Department;
 import com.hhm.model.Doctor;
 import com.hhm.service.DoctorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -67,7 +68,8 @@ public class DoctorController {
     public ResponseEntity<ApiResult<Void>> updateDoctor(
             @PathVariable long id,
             @Valid @RequestBody DoctorRequest req) {
-        Doctor doctor = new Doctor(req.getName(), req.getDepartmentId(), req.getLicenseNumber());
+        Department department = doctorService.findById(req.getDepartmentId()).getDepartment();
+        Doctor doctor = new Doctor(req.getName(), department, req.getLicenseNumber());
         doctor.setId(id);
         doctorService.update(doctor);
         return ResponseEntity.ok(ApiResult.success("Doctor " + id + " updated", null));

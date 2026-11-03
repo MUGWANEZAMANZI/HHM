@@ -12,12 +12,12 @@ import java.util.List;
 public interface MedicalItemRepository extends JpaRepository<MedicalItem, Long> {
 
     // Derived queries
-    List<MedicalItem> findByInventoryId(long inventoryId);
+    List<MedicalItem> findByInventory_Id(long inventoryId);
     List<MedicalItem> findByCategory(String category);
 
     // JPQL — bulk delete child items before removing parent inventory row
     @Modifying
     @Transactional
-    @Query("DELETE FROM MedicalItem m WHERE m.inventoryId = :inventoryId")
-    void deleteByInventoryId(@Param("inventoryId") long inventoryId);
+    @Query("DELETE FROM MedicalItem m WHERE m.inventory.id = :inventoryId")
+    void deleteByInventory_Id(@Param("inventoryId") long inventoryId);
 }

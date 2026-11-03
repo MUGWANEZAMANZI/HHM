@@ -1,9 +1,6 @@
 package com.hhm.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.ToString;
 
 @Entity
@@ -13,14 +10,17 @@ public class Doctor {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
     private String name;
-    private long departmentId;
     private String licenseNumber;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
 
     public Doctor() {}
 
-    public Doctor(String name, long departmentId, String licenseNumber) {
+    public Doctor(String name, Department department, String licenseNumber) {
         this.name = name;
-        this.departmentId = departmentId;
+        this.department = department;
         this.licenseNumber = licenseNumber;
     }
 
@@ -30,8 +30,9 @@ public class Doctor {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
-    public long getDepartmentId() { return departmentId; }
-    public void setDepartmentId(long departmentId) { this.departmentId = departmentId; }
+    public Department getDepartment() { return department; }
+    public void setDepartment(Department department) { this.department = department; }
+    public long getDepartmentId() { return department != null ? department.getId() : 0; }
 
     public String getLicenseNumber() { return licenseNumber; }
     public void setLicenseNumber(String licenseNumber) { this.licenseNumber = licenseNumber; }
