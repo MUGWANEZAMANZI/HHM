@@ -45,7 +45,8 @@ public class PatientAdmissionService {
                              long doctorId, LocalDateTime appointmentDate) {
 
         // ── STEP 1: save the new patient ─────────────────────────────────────
-        Patient patient = new Patient(name, phone, email);
+        Patient patient = new Patient(name, phone);
+        patient.setEmail(email);
         patientRepository.save(patient);
 
         // ── STEP 2: validate the doctor exists ───────────────────────────────

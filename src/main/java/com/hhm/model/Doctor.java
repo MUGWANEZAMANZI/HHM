@@ -5,10 +5,8 @@ import lombok.ToString;
 
 @Entity
 @ToString
-public class Doctor {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+@DiscriminatorValue("DOCTOR")
+public class Doctor extends User{
     private String name;
     private String licenseNumber;
 
@@ -16,16 +14,19 @@ public class Doctor {
     @JoinColumn(name = "department_id")
     private Department department;
 
-    public Doctor() {}
+    public Doctor() {
+        super();
+    }
 
     public Doctor(String name, Department department, String licenseNumber) {
+        super();
         this.name = name;
         this.department = department;
         this.licenseNumber = licenseNumber;
     }
 
-    public long getId() { return id; }
-    public void setId(long id) { this.id = id; }
+    public long getId() { return super.getId(); }
+    public void setId(long id) { super.setId(id); }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

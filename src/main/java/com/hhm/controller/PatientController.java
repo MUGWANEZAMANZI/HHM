@@ -115,7 +115,8 @@ public class PatientController {
             @Parameter(description = "ID of the patient to update", example = "1")
             @PathVariable long id,
             @Valid @RequestBody PatientRequest req) {
-        Patient p = new Patient(req.getName(), req.getPhone(), req.getEmail());
+        Patient p = new Patient(req.getName(), req.getPhone());
+        p.setEmail(req.getEmail());
         p.setId(id);
         p.setAddress(req.getAddress());
         patientService.update(p, req.getDistrict(), req.getSector(),
