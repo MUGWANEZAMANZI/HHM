@@ -39,7 +39,8 @@ public class PatientService {
             throw new ServiceException(ServiceException.Type.CONFLICT,
                 "A patient with phone \"" + phone + "\" already exists.");
 
-        Patient p = new Patient(name, phone, email);
+        Patient p = new Patient(name, phone);
+        p.setEmail(email);
         p.setAddress(address);
         Patient saved = patientRepository.save(p);
 
