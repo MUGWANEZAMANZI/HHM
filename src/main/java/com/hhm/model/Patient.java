@@ -5,29 +5,28 @@ import lombok.ToString;
 
 @Entity
 @ToString
-public class Patient {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+@DiscriminatorValue("PATIENT")
+public class Patient extends User{
     @Column(nullable = false)
     private String name;
     @Column(nullable = true)
     private String address;
     @Column(unique = true,nullable = false)
     private String phone;
-    @Column(unique = true,nullable = false)
-    private String email;
 
-    public Patient() {}
-
-    public Patient(String name, String phone, String email) {
-        this.name = name;
-        this.phone = phone;
-        this.email = email;
+    public Patient() {
+        super();
     }
 
-    public long getId() { return id; }
-    public void setId(long id) { this.id = id; }
+    public Patient(String name, String phone) {
+        super();
+        this.name = name;
+        this.phone = phone;
+
+    }
+
+    public long getId() { return super.getId(); }
+    public void setId(long id) { super.setId(id); }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -38,6 +37,4 @@ public class Patient {
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
 }
