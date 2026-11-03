@@ -1,4 +1,3 @@
 package com.hhm.dto;
 
-public class LoginResponse {
-}
+public record LoginResponse(String token, long expiresIn) {}

@@ -3,6 +3,7 @@ package com.hhm.service;
 
 import com.hhm.dto.RegisterRequest;
 import com.hhm.model.*;
+import com.hhm.repository.DepartmentRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -12,9 +13,11 @@ import java.time.LocalDateTime;
 public class UserFactory {
 
     private final PasswordEncoder passwordEncoder;
+    private final DepartmentRepository departmentRepository;
 
-    public UserFactory(PasswordEncoder passwordEncoder) {
+    public UserFactory(PasswordEncoder passwordEncoder, DepartmentRepository departmentRepository) {
         this.passwordEncoder = passwordEncoder;
+        this.departmentRepository = departmentRepository;
     }
 
     public User create(RegisterRequest request) {
@@ -46,6 +49,12 @@ public class UserFactory {
         fillBase(d, req);
         d.setName(req.getName());
         d.setLicenseNumber(req.getLicenseNumber());
+        if (req.getDepartmentId() != null) {
+            Department dept = departmentRepository.findById(req.getDepartmentId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                    "Department with id " + req.getDepartmentId() + " does not exist"));
+            d.setDepartment(dept);
+        }
         return d;
     }
 

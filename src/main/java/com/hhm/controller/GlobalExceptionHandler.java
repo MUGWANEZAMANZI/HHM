@@ -3,6 +3,7 @@ package com.hhm.controller;
 import com.hhm.dto.ApiResult;
 import com.hhm.service.ServiceException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -36,6 +37,16 @@ public class GlobalExceptionHandler {
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining("; "));
         return ResponseEntity.status(422).body(ApiResult.error(422, errors));
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiResult<?>> handleBadCredentials(BadCredentialsException e) {
+        return ResponseEntity.status(401).body(ApiResult.error(401, "Invalid email or password"));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResult<?>> handleIllegalArgument(IllegalArgumentException e) {
+        return ResponseEntity.status(400).body(ApiResult.error(400, e.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
