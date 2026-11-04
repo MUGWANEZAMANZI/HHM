@@ -1,10 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.w3.org/1999/xhtml">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
 </head>
 <body>
-$END$
+<!-- Display this ONLY when the user is logged in -->
+<div sec:authorize="isAuthenticated()">
+    <h1>Welcome, <span th:text="${displayName}">Username</span></h1>
+    <h2>Your role is <span th:text="${role}">Role</span></h2>
+    <p>You are successfully logged in!</p>
+    <form th:action="@{/logout}" method="post">
+        <button type="submit">Logout</button>
+    </form>
+</div>
+
+<!-- Display this ONLY when the user is a guest / not logged in -->
+<div sec:authorize="isAnonymous()">
+    <h1>Welcome, Guest</h1>
+    <p>You are not logged in.</p>
+    <a th:href="login.html">Login</a>
+</div>
 </body>
 </html>

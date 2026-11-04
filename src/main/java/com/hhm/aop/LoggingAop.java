@@ -15,10 +15,10 @@ public class LoggingAop {
 
     // ── Pointcuts ──────────────────────────────────────────────────────────────
 
-    @Pointcut("execution(* com.controller.*.*(..))")
+    @Pointcut("execution(* com.hhm.controller.*.*(..))")
     public void controllerAspect() {}
 
-    @Pointcut("execution(* com.service.*.*(..))")
+    @Pointcut("execution(* com.hhm.service.*.*(..))")
     public void serviceAspect() {}
 
     // ── Controller advice ──────────────────────────────────────────────────────
