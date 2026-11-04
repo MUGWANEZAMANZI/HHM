@@ -64,8 +64,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Only set authentication if not already set for this request
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        // JWT token takes priority over any existing session-based authentication.
+        // A Bearer token in the header is an explicit API credential and must not be
+        // ignored just because the browser also sent an OAuth2 session cookie.
+        if (email != null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
             if (jwtService.isTokenValid(jwt, userDetails)) {

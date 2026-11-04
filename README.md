@@ -447,6 +447,548 @@ Authorization: Bearer <doctor-token>    → 403 Forbidden
 
 ---
 
+## GraphQL API — Demo Queries & Mutations
+
+Open **http://localhost:8080/graphiql**, paste a JWT token in the top bar, and copy-paste any operation below.
+
+---
+
+### Auth
+
+#### Login (get a JWT token)
+```graphql
+mutation {
+  login(input: {
+    email: "admin@hhm.rw"
+    password: "admin123"
+  }) {
+    token
+    expiresIn
+  }
+}
+```
+
+#### Register a new patient account (public)
+```graphql
+mutation {
+  register(input: {
+    name: "Jane Doe"
+    email: "jane@example.com"
+    password: "secret123"
+  }) {
+    id
+    email
+    userType
+  }
+}
+```
+
+#### Who am I? _(requires token)_
+```graphql
+query {
+  me {
+    id
+    email
+    userType
+    displayName
+    provider
+  }
+}
+```
+
+#### Logout — blacklists the current token _(requires token)_
+```graphql
+mutation {
+  logout
+}
+```
+
+---
+
+### Admin — user management _(ADMIN token required)_
+
+#### List all system users
+```graphql
+query {
+  users {
+    id
+    email
+    userType
+    name
+    displayName
+    provider
+  }
+}
+```
+
+#### List all admins
+```graphql
+query {
+  admins {
+    id
+    email
+    name
+  }
+}
+```
+
+#### List pending Google users (no role assigned yet)
+```graphql
+query {
+  pendingUsers {
+    id
+    email
+    displayName
+    provider
+  }
+}
+```
+
+#### Create a new admin account
+```graphql
+mutation {
+  createAdmin(input: {
+    name: "New Admin"
+    email: "admin2@hhm.rw"
+    password: "admin123"
+  })
+}
+```
+
+#### Assign a role to a pending Google user
+```graphql
+mutation {
+  assignRole(id: 5, input: {
+    role: "PATIENT"
+    phone: "0788000001"
+  }) {
+    id
+    email
+    userType
+  }
+}
+```
+
+```graphql
+mutation {
+  assignRole(id: 6, input: {
+    role: "DOCTOR"
+    licenseNumber: "LIC-2025-001"
+    departmentId: "1"
+  }) {
+    id
+    email
+    userType
+  }
+}
+```
+
+#### Delete a user
+```graphql
+mutation {
+  deleteUser(id: 10)
+}
+```
+
+---
+
+### Patients _(ADMIN token required for mutations)_
+
+#### List all patients
+```graphql
+query {
+  patients {
+    id
+    name
+    email
+    phone
+  }
+}
+```
+
+#### Search patients by name
+```graphql
+query {
+  patients(search: "Alain") {
+    id
+    name
+    phone
+    email
+  }
+}
+```
+
+#### Paginated patient list
+```graphql
+query {
+  patientsPaged(page: 0, size: 10) {
+    content {
+      id
+      name
+      email
+    }
+    totalElements
+    totalPages
+    pageNumber
+    pageSize
+  }
+}
+```
+
+#### Get single patient
+```graphql
+query {
+  patient(id: 1) {
+    id
+    name
+    phone
+    email
+    address
+  }
+}
+```
+
+#### Register a patient
+```graphql
+mutation {
+  registerPatient(input: {
+    name: "Alain Habimana"
+    phone: "0788111222"
+    email: "alain@example.com"
+    address: "KG 123 St"
+    district: "Gasabo"
+    sector: "Remera"
+    cell: "Cell 1"
+    village: "Village 2"
+  })
+}
+```
+
+#### Delete a patient
+```graphql
+mutation {
+  deletePatient(id: 1)
+}
+```
+
+---
+
+### Doctors _(ADMIN token required for mutations)_
+
+#### List all doctors
+```graphql
+query {
+  doctors {
+    id
+    name
+    licenseNumber
+    departmentId
+  }
+}
+```
+
+#### Search doctors
+```graphql
+query {
+  doctors(search: "Emmanuel") {
+    id
+    name
+    licenseNumber
+  }
+}
+```
+
+#### Get single doctor
+```graphql
+query {
+  doctor(id: 1) {
+    id
+    name
+    licenseNumber
+    departmentId
+  }
+}
+```
+
+#### Register a doctor
+```graphql
+mutation {
+  registerDoctor(input: {
+    name: "Dr. Alice Uwimana"
+    departmentId: "1"
+    licenseNumber: "LIC-2025-010"
+  })
+}
+```
+
+#### Delete a doctor
+```graphql
+mutation {
+  deleteDoctor(id: 1)
+}
+```
+
+---
+
+### Departments _(ADMIN token required for mutations)_
+
+#### List all departments
+```graphql
+query {
+  departments {
+    id
+    name
+  }
+}
+```
+
+#### Create a department
+```graphql
+mutation {
+  createDepartment(name: "Ophthalmology")
+}
+```
+
+#### Delete a department
+```graphql
+mutation {
+  deleteDepartment(id: 11)
+}
+```
+
+---
+
+### Appointments _(PATIENT or RECEPTIONIST to book; ADMIN or RECEPTIONIST to cancel)_
+
+#### List all appointments
+```graphql
+query {
+  appointments {
+    id
+    patientName
+    doctorName
+    departmentName
+    appointmentDate
+    status
+  }
+}
+```
+
+#### Filter by status
+```graphql
+query {
+  appointments(status: "Scheduled") {
+    id
+    patientName
+    doctorName
+    appointmentDate
+  }
+}
+```
+
+#### Search appointments
+```graphql
+query {
+  appointments(search: "Habimana") {
+    id
+    patientName
+    doctorName
+    status
+  }
+}
+```
+
+#### Book an appointment _(PATIENT or RECEPTIONIST token)_
+```graphql
+mutation {
+  bookAppointment(input: {
+    patientId: "1"
+    doctorId: "2"
+    appointmentDate: "2026-11-20T10:00:00"
+  })
+}
+```
+
+#### Cancel an appointment _(ADMIN or RECEPTIONIST token)_
+```graphql
+mutation {
+  cancelAppointment(id: 1)
+}
+```
+
+#### Delete an appointment _(ADMIN token)_
+```graphql
+mutation {
+  deleteAppointment(id: 1)
+}
+```
+
+---
+
+### Prescriptions _(DOCTOR to issue; DOCTOR or ADMIN to cancel; ADMIN to delete)_
+
+#### List all prescriptions
+```graphql
+query {
+  prescriptions {
+    id
+    patientId
+    doctorId
+    issuedAt
+    status
+    notes
+  }
+}
+```
+
+#### Issue a prescription _(DOCTOR token)_
+```graphql
+mutation {
+  issuePrescription(input: {
+    patientId: "1"
+    doctorId: "1"
+    notes: "Take with food. Avoid alcohol."
+  })
+}
+```
+
+#### Cancel a prescription _(DOCTOR or ADMIN token)_
+```graphql
+mutation {
+  cancelPrescription(id: 1)
+}
+```
+
+#### Delete a prescription _(ADMIN token)_
+```graphql
+mutation {
+  deletePrescription(id: 1)
+}
+```
+
+---
+
+### Feedback _(RECEPTIONIST or PATIENT to submit; ADMIN, NURSE, or RECEPTIONIST to delete)_
+
+#### List all feedback
+```graphql
+query {
+  feedback {
+    id
+    patientId
+    feedback
+    privateNotes
+    issuedAt
+  }
+}
+```
+
+#### Search feedback
+```graphql
+query {
+  feedback(search: "excellent") {
+    id
+    feedback
+    issuedAt
+  }
+}
+```
+
+#### Submit feedback _(PATIENT or RECEPTIONIST token)_
+```graphql
+mutation {
+  submitFeedback(input: {
+    patientId: "1"
+    feedback: "Excellent service, very professional staff."
+    privateNotes: "Patient expressed high satisfaction."
+  })
+}
+```
+
+#### Delete feedback _(ADMIN, NURSE, or RECEPTIONIST token)_
+```graphql
+mutation {
+  deleteFeedback(id: 1)
+}
+```
+
+---
+
+### Inventory _(low-stock and mutations require ADMIN, NURSE, or RECEPTIONIST)_
+
+#### List all inventory items _(any authenticated user)_
+```graphql
+query {
+  inventory {
+    id
+    name
+    sku
+    quantityOnHand
+    reorderLevel
+  }
+}
+```
+
+#### Search inventory
+```graphql
+query {
+  inventory(search: "Amoxicillin") {
+    id
+    name
+    sku
+    quantityOnHand
+  }
+}
+```
+
+#### Low-stock items _(ADMIN, NURSE, or RECEPTIONIST token)_
+```graphql
+query {
+  lowStockItems {
+    id
+    name
+    sku
+    quantityOnHand
+    reorderLevel
+  }
+}
+```
+
+#### Add an inventory item _(ADMIN, NURSE, or RECEPTIONIST token)_
+```graphql
+mutation {
+  addInventoryItem(input: {
+    name: "Paracetamol 1000mg"
+    sku: "MED-PCM-1000"
+    quantityOnHand: 500
+    reorderLevel: 100
+  })
+}
+```
+
+#### Delete an inventory item _(ADMIN or RECEPTIONIST token)_
+```graphql
+mutation {
+  deleteInventoryItem(id: 1)
+}
+```
+
+---
+
+### Seeded demo credentials
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@hhm.rw` | `admin123` |
+| Doctor (1–10) | `doctor1@hhm.rw` | `doctor123` |
+| Nurse (1–30) | `nurse1@hhm.rw` | `nurse123` |
+| Patient (1–100) | `patient1@hhm.rw` | `patient123` |
+
+> **Receptionist** is not seeded. Create one via:
+> `POST /api/v1/admin` with admin token and `"type": "RECEPTIONIST"`.
+
+---
+
 ## Spring Profiles
 
 | Profile | File | DDL auto | Logging | SQL printed |
