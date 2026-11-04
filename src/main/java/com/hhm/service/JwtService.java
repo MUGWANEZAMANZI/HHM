@@ -63,10 +63,10 @@ public class JwtService {
     private Claims extractAllClaims(String token)
     {
         return Jwts.parser()
-                .setSigningKey(getSignInKey())
+                .verifyWith(getSignInKey())   // 0.12.x: verifyWith replaces setSigningKey
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)     // 0.12.x: parseSignedClaims replaces parseClaimsJws
+                .getPayload();                // 0.12.x: getPayload replaces getBody
     }
 
     private SecretKey getSignInKey()

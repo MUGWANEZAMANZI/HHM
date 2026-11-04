@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -37,6 +38,7 @@ public class PrescriptionController {
                 ApiResult.success("Prescriptions retrieved", prescriptionService.getAll()));
     }
 
+    @PreAuthorize("hasAuthority('DOCTOR') or hasAuthority('NURSE')")
     @PostMapping
     @Operation(summary = "Issue a prescription",
                description = "Creates a new prescription. Patient and doctor must exist.")
@@ -52,6 +54,7 @@ public class PrescriptionController {
                 .body(ApiResult.created("Prescription issued successfully", null));
     }
 
+    @PreAuthorize("hasAuthority('DOCTOR') or hasAuthority('NURSE')")
     @PutMapping("/{id}")
     @Operation(summary = "Update a prescription")
     @ApiResponses({
@@ -67,6 +70,7 @@ public class PrescriptionController {
         return ResponseEntity.ok(ApiResult.success("Prescription " + id + " updated", null));
     }
 
+    @PreAuthorize("hasAuthority('DOCTOR') or hasAuthority('NURSE')")
     @PatchMapping("/{id}/cancel")
     @Operation(summary = "Cancel a prescription")
     @ApiResponses({
@@ -79,6 +83,7 @@ public class PrescriptionController {
         return ResponseEntity.ok(ApiResult.success("Prescription " + id + " cancelled", null));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a prescription")
     @ApiResponses({

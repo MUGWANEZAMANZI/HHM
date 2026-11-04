@@ -3,7 +3,10 @@ package com.hhm.controller;
 import com.hhm.dto.AdmitPatientRequest;
 import com.hhm.dto.ApiResult;
 import com.hhm.dto.PatientRequest;
+import com.hhm.dto.RegisterRequest;
+import com.hhm.dto.Type;
 import com.hhm.model.Patient;
+import com.hhm.service.AuthService;
 import com.hhm.service.PatientAdmissionService;
 import com.hhm.service.PatientService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,6 +21,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,10 +33,16 @@ public class PatientController {
 
     private final PatientService patientService;
     private final PatientAdmissionService admissionService;
+    private final AuthService authService;
 
-    PatientController(PatientService patientService, PatientAdmissionService admissionService) {
+    PatientController(
+            PatientService patientService,
+            PatientAdmissionService admissionService,
+            AuthService authService
+    ) {
         this.patientService = patientService;
         this.admissionService = admissionService;
+        this.authService = authService;
     }
 
     @GetMapping
@@ -84,30 +94,30 @@ public class PatientController {
     @PostMapping
     @Operation(
         summary     = "Register a new patient",
-        description = "Creates a patient record. Email must be unique."
+        description = "Creates a patient account via UserFactory. Requires email, password, name, phone."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Patient registered successfully"),
-        @ApiResponse(responseCode = "409", description = "Email is already taken"),
+        @ApiResponse(responseCode = "409", description = "Email already in use"),
         @ApiResponse(responseCode = "422", description = "Validation failed — see message field")
     })
-    public ResponseEntity<ApiResult<Void>> createPatient(@Valid @RequestBody PatientRequest req) {
-        long id = patientService.register(
-            req.getName(), req.getPhone(), req.getEmail(),
-            req.getAddress(), req.getDistrict(), req.getSector(),
-            req.getCell(), req.getVillage()
-        );
+    public ResponseEntity<ApiResult<Void>> createPatient(@Valid @RequestBody RegisterRequest req) {
+        req.setType(Type.PATIENT);
+        authService.createUser(req);
         return ResponseEntity.status(201)
-                .body(ApiResult.created("Patient registered with id " + id, null));
+                .body(ApiResult.created("Patient registered successfully", null));
     }
 
+    // ADMIN can update any patient. A PATIENT can only update their own account.
+    @PreAuthorize("hasAuthority('ADMIN') or (hasAuthority('PATIENT') and authentication.principal.id == #id)")
     @PutMapping("/{id}")
     @Operation(
         summary     = "Update a patient",
-        description = "Updates name, phone, email, address, and location."
+        description = "Updates name, phone, email, address, and location. Patients can only update their own record."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Patient updated successfully"),
+        @ApiResponse(responseCode = "403", description = "Not allowed to update another patient's account"),
         @ApiResponse(responseCode = "404", description = "Patient not found"),
         @ApiResponse(responseCode = "422", description = "Validation failed")
     })
@@ -124,6 +134,7 @@ public class PatientController {
         return ResponseEntity.ok(ApiResult.success("Patient " + id + " updated", null));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/{id}")
     @Operation(
         summary     = "Delete a patient",

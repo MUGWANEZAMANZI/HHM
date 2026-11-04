@@ -27,38 +27,32 @@ class PatientFeedbackServiceTest {
 
     @Test
     void submit_success_savesFeedback() {
-        PatientFeedback fb = new PatientFeedback(1L, "Great service", null, LocalDateTime.now());
         given(patientRepository.existsById(1L)).willReturn(true);
 
-        feedbackService.submit(fb);
+        feedbackService.submit(1L, "Great service", null, LocalDateTime.now());
 
-        then(feedbackRepository).should().save(fb);
+        then(feedbackRepository).should().save(any(PatientFeedback.class));
     }
 
     @Test
     void submit_blankFeedback_throws() {
-        PatientFeedback fb = new PatientFeedback(1L, "   ", null, LocalDateTime.now());
-
-        assertThatThrownBy(() -> feedbackService.submit(fb))
+        assertThatThrownBy(() -> feedbackService.submit(1L, "   ", null, LocalDateTime.now()))
             .isInstanceOf(ServiceException.class)
             .hasMessageContaining("empty");
     }
 
     @Test
     void submit_nullFeedback_throws() {
-        PatientFeedback fb = new PatientFeedback(1L, null, null, LocalDateTime.now());
-
-        assertThatThrownBy(() -> feedbackService.submit(fb))
+        assertThatThrownBy(() -> feedbackService.submit(1L, null, null, LocalDateTime.now()))
             .isInstanceOf(ServiceException.class)
             .hasMessageContaining("empty");
     }
 
     @Test
     void submit_patientNotFound_throws() {
-        PatientFeedback fb = new PatientFeedback(99L, "Great service", null, LocalDateTime.now());
         given(patientRepository.existsById(99L)).willReturn(false);
 
-        assertThatThrownBy(() -> feedbackService.submit(fb))
+        assertThatThrownBy(() -> feedbackService.submit(99L, "Great service", null, LocalDateTime.now()))
             .isInstanceOf(ServiceException.class)
             .extracting(e -> ((ServiceException) e).getType())
             .isEqualTo(ServiceException.Type.NOT_FOUND);

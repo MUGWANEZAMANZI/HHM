@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -42,6 +43,7 @@ public class FeedbackController {
         return ResponseEntity.ok(ApiResult.success("Feedback retrieved", result));
     }
 
+    @PreAuthorize("hasAuthority('RECEPTIONIST') or hasAuthority('PATIENT')")
     @PostMapping
     @Operation(summary = "Submit patient feedback",
                description = "Records feedback for a patient. Patient must exist.")
@@ -57,6 +59,7 @@ public class FeedbackController {
                 .body(ApiResult.created("Feedback submitted successfully", null));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('NURSE') or hasAuthority('RECEPTIONIST')")
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete feedback",
                description = "Permanently removes a feedback record.")

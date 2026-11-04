@@ -24,13 +24,19 @@ class PatientServiceTest {
     @Mock PatientAddressRepository addressRepository;
     @InjectMocks PatientService patientService;
 
+    private static Patient patient(String name, String phone, String email) {
+        Patient p = new Patient(name, phone);
+        p.setEmail(email);
+        return p;
+    }
+
     // ─── register ────────────────────────────────────────────────────────────
 
     @Test
     void register_success_returnsGeneratedId() {
         given(patientRepository.findByEmail("alice@hhm.rw")).willReturn(Optional.empty());
         given(patientRepository.findByPhone("0780000001")).willReturn(Optional.empty());
-        Patient saved = new Patient("Alice", "0780000001", "alice@hhm.rw");
+        Patient saved = patient("Alice", "0780000001", "alice@hhm.rw");
         saved.setId(1L);
         given(patientRepository.save(any())).willReturn(saved);
 
@@ -43,7 +49,7 @@ class PatientServiceTest {
     void register_withDistrict_savesAddress() {
         given(patientRepository.findByEmail("alice@hhm.rw")).willReturn(Optional.empty());
         given(patientRepository.findByPhone("0780000001")).willReturn(Optional.empty());
-        Patient saved = new Patient("Alice", "0780000001", "alice@hhm.rw");
+        Patient saved = patient("Alice", "0780000001", "alice@hhm.rw");
         saved.setId(1L);
         given(patientRepository.save(any())).willReturn(saved);
 
@@ -55,7 +61,7 @@ class PatientServiceTest {
     @Test
     void register_duplicateEmail_throwsConflict() {
         given(patientRepository.findByEmail("alice@hhm.rw"))
-            .willReturn(Optional.of(new Patient("Other", "0780000002", "alice@hhm.rw")));
+            .willReturn(Optional.of(patient("Other", "0780000002", "alice@hhm.rw")));
 
         assertThatThrownBy(() ->
             patientService.register("Alice", "0780000001", "alice@hhm.rw", null, null, null, null, null))
@@ -69,7 +75,7 @@ class PatientServiceTest {
     void register_duplicatePhone_throwsConflict() {
         given(patientRepository.findByEmail("alice@hhm.rw")).willReturn(Optional.empty());
         given(patientRepository.findByPhone("0780000001"))
-            .willReturn(Optional.of(new Patient("Other", "0780000001", "other@hhm.rw")));
+            .willReturn(Optional.of(patient("Other", "0780000001", "other@hhm.rw")));
 
         assertThatThrownBy(() ->
             patientService.register("Alice", "0780000001", "alice@hhm.rw", null, null, null, null, null))
@@ -83,7 +89,7 @@ class PatientServiceTest {
 
     @Test
     void update_success() {
-        Patient patient = new Patient("Alice", "0780000001", "alice@hhm.rw");
+        Patient patient = patient("Alice", "0780000001", "alice@hhm.rw");
         patient.setId(1L);
         given(patientRepository.existsById(1L)).willReturn(true);
         given(patientRepository.findByEmail("alice@hhm.rw")).willReturn(Optional.of(patient));
@@ -95,7 +101,7 @@ class PatientServiceTest {
 
     @Test
     void update_notFound_throws() {
-        Patient patient = new Patient("Alice", "0780000001", "alice@hhm.rw");
+        Patient patient = patient("Alice", "0780000001", "alice@hhm.rw");
         patient.setId(99L);
         given(patientRepository.existsById(99L)).willReturn(false);
 
@@ -107,9 +113,9 @@ class PatientServiceTest {
 
     @Test
     void update_emailTakenByOtherPatient_throwsConflict() {
-        Patient patient = new Patient("Alice", "0780000001", "alice@hhm.rw");
+        Patient patient = patient("Alice", "0780000001", "alice@hhm.rw");
         patient.setId(1L);
-        Patient other = new Patient("Bob", "0780000002", "alice@hhm.rw");
+        Patient other = patient("Bob", "0780000002", "alice@hhm.rw");
         other.setId(2L);
         given(patientRepository.existsById(1L)).willReturn(true);
         given(patientRepository.findByEmail("alice@hhm.rw")).willReturn(Optional.of(other));
@@ -123,7 +129,7 @@ class PatientServiceTest {
 
     @Test
     void update_emailBelongsToSamePatient_doesNotThrow() {
-        Patient patient = new Patient("Alice", "0780000001", "alice@hhm.rw");
+        Patient patient = patient("Alice", "0780000001", "alice@hhm.rw");
         patient.setId(1L);
         given(patientRepository.existsById(1L)).willReturn(true);
         // same patient found by email → no conflict
@@ -141,7 +147,7 @@ class PatientServiceTest {
 
         patientService.remove(1L);
 
-        then(addressRepository).should().deleteByPatientId(1L);
+        then(addressRepository).should().deleteByPatient_Id(1L);
         then(patientRepository).should().deleteById(1L);
     }
 
@@ -160,7 +166,7 @@ class PatientServiceTest {
     @Test
     void getAll_returnsList() {
         given(patientRepository.findAll()).willReturn(
-            List.of(new Patient("Alice", "0780000001", "alice@hhm.rw")));
+            List.of(patient("Alice", "0780000001", "alice@hhm.rw")));
 
         List<Patient> result = patientService.getAll();
 
@@ -170,7 +176,7 @@ class PatientServiceTest {
 
     @Test
     void search_returnsMatchingPatients() {
-        Patient alice = new Patient("Alice", "0780000001", "alice@hhm.rw");
+        Patient alice = patient("Alice", "0780000001", "alice@hhm.rw");
         given(patientRepository.search("Alice")).willReturn(List.of(alice));
 
         List<Patient> result = patientService.search("Alice");

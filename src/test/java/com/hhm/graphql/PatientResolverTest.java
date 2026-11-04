@@ -28,7 +28,8 @@ class PatientResolverTest {
 
     @Test
     void patients_nullSearch_delegatesToGetAll() {
-        Patient p = new Patient("Alice", "0780000001", "alice@hhm.rw");
+        Patient p = new Patient("Alice", "0780000001");
+        p.setEmail("alice@hhm.rw");
         given(patientService.getAll()).willReturn(List.of(p));
 
         List<Patient> result = patientResolver.patients(null);
@@ -51,7 +52,8 @@ class PatientResolverTest {
 
     @Test
     void patients_withSearch_delegatesToSearch() {
-        Patient p = new Patient("Alice", "0780000001", "alice@hhm.rw");
+        Patient p = new Patient("Alice", "0780000001");
+        p.setEmail("alice@hhm.rw");
         given(patientService.search("Alice")).willReturn(List.of(p));
 
         List<Patient> result = patientResolver.patients("Alice");

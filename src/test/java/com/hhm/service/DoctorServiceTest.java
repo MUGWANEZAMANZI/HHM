@@ -61,7 +61,7 @@ class DoctorServiceTest {
     void register_duplicateLicense_throwsConflict() {
         given(departmentRepository.existsById(1L)).willReturn(true);
         given(doctorRepository.findAll()).willReturn(
-            List.of(new Doctor("Dr. Other", 1L, "LIC-001")));
+            List.of(new Doctor("Dr. Other", new com.hhm.model.Department(), "LIC-001")));
 
         assertThatThrownBy(() -> doctorService.register(req("Dr. Alice", 1L, "LIC-001")))
             .isInstanceOf(ServiceException.class)
@@ -74,7 +74,7 @@ class DoctorServiceTest {
     void register_licenseCheckIsCaseInsensitive() {
         given(departmentRepository.existsById(1L)).willReturn(true);
         given(doctorRepository.findAll()).willReturn(
-            List.of(new Doctor("Dr. Other", 1L, "lic-001")));
+            List.of(new Doctor("Dr. Other", new com.hhm.model.Department(), "lic-001")));
 
         assertThatThrownBy(() -> doctorService.register(req("Dr. Alice", 1L, "LIC-001")))
             .isInstanceOf(ServiceException.class)
@@ -87,7 +87,7 @@ class DoctorServiceTest {
     @Test
     void remove_success_deletesDoctor() {
         given(doctorRepository.existsById(1L)).willReturn(true);
-        given(appointmentRepository.findByDoctorId(1L)).willReturn(List.of());
+        given(appointmentRepository.findByDoctor_Id(1L)).willReturn(List.of());
 
         doctorService.remove(1L);
 
@@ -107,8 +107,10 @@ class DoctorServiceTest {
     @Test
     void remove_hasScheduledAppointments_throwsConflict() {
         given(doctorRepository.existsById(1L)).willReturn(true);
-        Appointment scheduled = new Appointment(10L, 1L, LocalDateTime.now().plusDays(1), "Scheduled");
-        given(appointmentRepository.findByDoctorId(1L)).willReturn(List.of(scheduled));
+        Appointment scheduled = new Appointment();
+        scheduled.setAppointmentDate(LocalDateTime.now().plusDays(1));
+        scheduled.setStatus("Scheduled");
+        given(appointmentRepository.findByDoctor_Id(1L)).willReturn(List.of(scheduled));
 
         assertThatThrownBy(() -> doctorService.remove(1L))
             .isInstanceOf(ServiceException.class)
@@ -119,8 +121,10 @@ class DoctorServiceTest {
     @Test
     void remove_onlyCancelledAppointments_succeeds() {
         given(doctorRepository.existsById(1L)).willReturn(true);
-        Appointment cancelled = new Appointment(10L, 1L, LocalDateTime.now().minusDays(1), "Cancelled");
-        given(appointmentRepository.findByDoctorId(1L)).willReturn(List.of(cancelled));
+        Appointment cancelled = new Appointment();
+        cancelled.setAppointmentDate(LocalDateTime.now().minusDays(1));
+        cancelled.setStatus("Cancelled");
+        given(appointmentRepository.findByDoctor_Id(1L)).willReturn(List.of(cancelled));
 
         assertThatCode(() -> doctorService.remove(1L)).doesNotThrowAnyException();
         then(doctorRepository).should().deleteById(1L);
