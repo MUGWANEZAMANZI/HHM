@@ -43,6 +43,7 @@ public class FeedbackController {
         return ResponseEntity.ok(ApiResult.success("Feedback retrieved", result));
     }
 
+    @PreAuthorize("hasAuthority('RECEPTIONIST') or hasAuthority('PATIENT')")
     @PostMapping
     @Operation(summary = "Submit patient feedback",
                description = "Records feedback for a patient. Patient must exist.")

@@ -2,6 +2,8 @@ package com.hhm.controller;
 
 import com.hhm.dto.ApiResult;
 import com.hhm.service.ServiceException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -58,5 +60,29 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResult<?>> handleGeneral(Exception e) {
         return ResponseEntity.status(500).body(ApiResult.error(500, "Unexpected error: " + e.getMessage()));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResult<?>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        String rootMsg = (ex.getRootCause() != null && ex.getRootCause().getMessage() != null)
+                ? ex.getRootCause().getMessage() : "";
+
+        String message = "A database conflict occurred. Please check your input and try again.";
+
+        if (rootMsg.contains("uk_user_email")) {
+            message = "Email address is already registered.";
+        } else if (rootMsg.contains("uk_doctor_license")) {
+            message = "License number is already in use.";
+        } else if (rootMsg.contains("uk_patient_phone")) {
+            message = "Phone number is already registered.";
+        } else if (rootMsg.contains("uk_inventory_sku")) {
+            message = "An item with this SKU already exists.";
+        } else if (rootMsg.contains("uk_department_name")) {
+            message = "A department with this name already exists.";
+        } else if (rootMsg.contains("Duplicate entry")) {
+            message = "A record with this information already exists.";
+        }
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResult.error(409, message));
     }
 }

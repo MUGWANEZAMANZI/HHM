@@ -6,12 +6,15 @@ import lombok.ToString;
 @Entity
 @ToString
 @DiscriminatorValue("PATIENT")
+@Table(name = "patient", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"phone"}, name = "uk_patient_phone")
+})
 public class Patient extends User{
     @Column(nullable = false)
     private String name;
     @Column(nullable = true)
     private String address;
-    @Column(unique = true,nullable = false)
+    @Column(nullable = false)
     private String phone;
 
     public Patient() {
