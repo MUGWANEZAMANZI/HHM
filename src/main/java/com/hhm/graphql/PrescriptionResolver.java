@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 
 import java.time.LocalDateTime;
@@ -34,6 +35,7 @@ public class PrescriptionResolver {
                 .orElse(null);
     }
 
+    @PreAuthorize("hasAuthority('DOCTOR')")
     @MutationMapping
     public String issuePrescription(@Argument @Valid PrescriptionRequest input) {
         prescriptionService.issue(input.getPatientId(), input.getDoctorId(),
@@ -41,12 +43,14 @@ public class PrescriptionResolver {
         return "Prescription issued successfully";
     }
 
+    @PreAuthorize("hasAuthority('DOCTOR') or hasAuthority('ADMIN')")
     @MutationMapping
     public boolean cancelPrescription(@Argument Long id) {
         prescriptionService.cancel(id);
         return true;
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @MutationMapping
     public boolean deletePrescription(@Argument Long id) {
         prescriptionService.remove(id);

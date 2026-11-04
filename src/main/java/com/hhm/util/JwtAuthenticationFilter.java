@@ -1,5 +1,6 @@
 package com.hhm.util;
 
+import com.hhm.service.BlackListService;
 import com.hhm.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -21,10 +22,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final BlackListService blackListService;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtService jwtService,
+                                   UserDetailsService userDetailsService,
+                                   BlackListService blackListService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.blackListService = blackListService;
     }
 
     @Override
@@ -42,6 +47,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         final String jwt = authHeader.substring(7);
+
+        if (blackListService.isBlackListed(jwt)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         final String email;
 
         try {
@@ -53,8 +64,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Only set authentication if not already set for this request
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        // JWT token takes priority over any existing session-based authentication.
+        // A Bearer token in the header is an explicit API credential and must not be
+        // ignored just because the browser also sent an OAuth2 session cookie.
+        if (email != null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
             if (jwtService.isTokenValid(jwt, userDetails)) {

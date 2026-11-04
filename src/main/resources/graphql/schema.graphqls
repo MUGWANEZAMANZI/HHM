@@ -1,3 +1,19 @@
+# ─── Auth / User types ────────────────────────────────────────────────────────
+
+type User {
+    id: ID!
+    email: String!
+    userType: String
+    displayName: String
+    provider: String
+    name: String
+}
+
+type AuthToken {
+    token: String!
+    expiresIn: Int!
+}
+
 # ─── Domain types ────────────────────────────────────────────────────────────
 
 type Patient {
@@ -106,6 +122,14 @@ type Query {
     # Inventory
     inventory(search: String): [MedicalInventory!]!
     lowStockItems: [MedicalInventory!]!
+
+    # Auth / current user
+    me: User
+
+    # Admin — user management
+    users: [User!]!
+    admins: [User!]!
+    pendingUsers: [User!]!
 }
 
 # ─── Input types ──────────────────────────────────────────────────────────────
@@ -152,6 +176,24 @@ input AddInventoryItemInput {
     reorderLevel: Int!
 }
 
+input LoginInput {
+    email: String!
+    password: String!
+}
+
+input RegisterInput {
+    name: String!
+    email: String!
+    password: String!
+}
+
+input AssignRoleInput {
+    role: String!
+    phone: String
+    licenseNumber: String
+    departmentId: ID
+}
+
 # ─── Mutations ────────────────────────────────────────────────────────────────
 
 type Mutation {
@@ -184,4 +226,15 @@ type Mutation {
     # Inventory
     addInventoryItem(input: AddInventoryItemInput!): String!
     deleteInventoryItem(id: ID!): Boolean!
+
+    # Auth
+    login(input: LoginInput!): AuthToken!
+    logout: Boolean!
+    register(input: RegisterInput!): User!
+
+    # Admin — user management
+    createAdmin(input: RegisterInput!): String!
+    updateAdmin(id: ID!, name: String!): Boolean!
+    assignRole(id: ID!, input: AssignRoleInput!): User!
+    deleteUser(id: ID!): Boolean!
 }

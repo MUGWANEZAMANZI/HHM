@@ -6,6 +6,7 @@ import com.hhm.service.DepartmentService;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 
 import java.util.List;
@@ -29,6 +30,7 @@ public class DepartmentResolver {
         return departmentService.findById(id);
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @MutationMapping
     public String createDepartment(@Argument String name) {
         DepartmentRequest req = new DepartmentRequest();
@@ -37,6 +39,7 @@ public class DepartmentResolver {
         return "Department \"" + saved.getName() + "\" created with id " + saved.getId();
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @MutationMapping
     public boolean deleteDepartment(@Argument Long id) {
         departmentService.remove(id);

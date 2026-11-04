@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 
 import java.time.LocalDateTime;
@@ -50,6 +51,7 @@ public class AppointmentResolver {
                 .orElse(null);
     }
 
+    @PreAuthorize("hasAuthority('PATIENT') or hasAuthority('RECEPTIONIST')")
     @MutationMapping
     public String bookAppointment(@Argument @Valid AppointmentRequest input) {
         LocalDateTime date = LocalDateTime.parse(input.getAppointmentDate());
@@ -57,12 +59,14 @@ public class AppointmentResolver {
         return "Appointment booked successfully";
     }
 
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('RECEPTIONIST')")
     @MutationMapping
     public boolean cancelAppointment(@Argument Long id) {
         appointmentService.cancel(id);
         return true;
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @MutationMapping
     public boolean deleteAppointment(@Argument Long id) {
         appointmentService.remove(id);

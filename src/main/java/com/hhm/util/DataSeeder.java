@@ -69,6 +69,7 @@ public class DataSeeder implements CommandLineRunner {
         List<Department>       depts    = seedDepartments();
         List<Doctor>           doctors  = seedDoctors(depts);
         seedNurses();
+        seedReceptionists();
         List<Patient>          patients = seedPatients();
         List<MedicalInventory> meds     = seedInventory();
         seedAdmin();
@@ -151,6 +152,23 @@ public class DataSeeder implements CommandLineRunner {
             n.setPassword(passwordEncoder.encode("nurse123"));
             n.setRegisteredAt(LocalDateTime.now().minusMonths(4));
             userRepository.save(n);
+        }
+    }
+
+    // ─── Receptionists ──────────────────────────────────────────────────────────
+
+    private void seedReceptionists() {
+        String[][] data = {
+            {"Marie Claire Uwimana", "receptionist1@hhm.rw"},
+            {"Jean Paul Habimana",   "receptionist2@hhm.rw"},
+        };
+        for (String[] row : data) {
+            Receptionist r = new Receptionist();
+            r.setReceptionistName(row[0]);
+            r.setEmail(row[1]);
+            r.setPassword(passwordEncoder.encode("recep123"));
+            r.setRegisteredAt(LocalDateTime.now().minusMonths(3));
+            userRepository.save(r);
         }
     }
 
