@@ -22,11 +22,11 @@ public class UserFactory {
 
     public User create(RegisterRequest request) {
         return switch (request.getType()) {
-            case DOCTOR  -> buildDoctor(request);
-            case NURSE -> buildNurse(request);
+            case DOCTOR       -> buildDoctor(request);
+            case NURSE        -> buildNurse(request);
             case RECEPTIONIST -> buildReceptionist(request);
-            case PATIENT -> buildPatient(request);
-            case ADMIN   -> buildAdmin(request);
+            case PATIENT      -> buildPatient(request);
+            case ADMIN        -> buildAdmin(request);
         };
     }
 

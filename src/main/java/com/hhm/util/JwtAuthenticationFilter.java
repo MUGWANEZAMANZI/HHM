@@ -1,6 +1,7 @@
 package com.hhm.util;
 
 import com.hhm.service.JwtService;
+import com.hhm.service.RedisSecurityService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,10 +22,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final RedisSecurityService redisSecurityService;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtService jwtService,
+                                   UserDetailsService userDetailsService,
+                                   RedisSecurityService redisSecurityService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.redisSecurityService = redisSecurityService;
     }
 
     @Override
@@ -42,19 +47,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         final String jwt = authHeader.substring(7);
-        final String email;
 
+        final String jti;
         try {
-            email = jwtService.extractUsername(jwt);
+            jti = jwtService.extractJti(jwt);
         } catch (Exception e) {
-            // Malformed or expired token — let the request continue unauthenticated;
-            // Spring Security will return 401/403 as configured.
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Only set authentication if not already set for this request
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (redisSecurityService.isTokenBlacklisted(jti)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        final String email;
+        try {
+            email = jwtService.extractUsername(jwt);
+        } catch (Exception e) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // JWT token takes priority over any existing session-based authentication.
+        // A Bearer token in the header is an explicit API credential and must not be
+        // ignored just because the browser also sent an OAuth2 session cookie.
+        if (email != null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
             if (jwtService.isTokenValid(jwt, userDetails)) {

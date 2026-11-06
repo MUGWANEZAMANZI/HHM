@@ -1,10 +1,8 @@
-# Hospital Health Management System — Module III
+# Hospital Health Management System — Module IV
 
-Spring Boot REST + GraphQL API backed by **Spring Data JPA** for managing hospital operations:
-patients, doctors, departments, appointments, prescriptions, medical inventory, and patient feedback.
+Spring Boot REST + GraphQL API secured with **Spring Security**, **JWT authentication**, **Google OAuth2**, and **Role-Based Access Control (RBAC)**.
 
-Module III upgrades the persistence layer from raw `JdbcTemplate` SQL to full JPA repositories
-with derived queries, JPQL, native SQL, transaction management, and Spring Cache.
+Module IV adds a complete security layer on top of the Module III persistence backend: stateless JWT for the REST API, session-based OAuth2 for browser login, and fine-grained `@PreAuthorize` guards on every endpoint.
 
 ---
 
@@ -12,7 +10,7 @@ with derived queries, JPQL, native SQL, transaction management, and Spring Cache
 
 | Tool | Version |
 |---|---|
-| Java JDK | 25 |
+| Java JDK | 21+ |
 | Apache Maven | 3.6+ |
 | MySQL Server | 8.0+ |
 | IntelliJ IDEA | 2024+ (recommended) |
@@ -24,199 +22,594 @@ with derived queries, JPQL, native SQL, transaction management, and Spring Cache
 ### 1. Database setup
 
 ```sql
-CREATE DATABASE hhm;
--- Then run db.sql to create tables and seed data
-mysql -u root -p hhm < db.sql
+CREATE DATABASE hhm2;
 ```
 
-> **Module III note:** Hibernate manages the schema automatically via `ddl-auto=update`.
-> You no longer need to run `db.sql` manually — Hibernate creates and alters tables on startup.
+Hibernate creates and updates the schema automatically on startup (`ddl-auto=update`).
 
 ### 2. Configure credentials
 
 Edit `src/main/resources/application-dev.properties`:
 
 ```properties
-spring.datasource.username=root
+spring.datasource.username=your_username
 spring.datasource.password=your_password
+spring.security.jwt.secret=your_base64_encoded_secret
+spring.security.oauth2.client.registration.google.client-id=your_client_id
+spring.security.oauth2.client.registration.google.client-secret=your_client_secret
 ```
 
 ### 3. Run the application
 
 ```bash
-mvn spring-boot:run
-```
-
-The server starts on **http://localhost:8080**.
-
-On first run, Hibernate will print the generated CREATE TABLE statements to the console
-(visible because `spring.jpa.show-sql=true` is set in the dev profile).
-
-### 4. Switch profiles
-
-```bash
-# Development (default — debug logging, show SQL, stack traces in errors)
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
-
-# Production (info logging, SQL hidden, errors hidden from consumers)
-mvn spring-boot:run -Dspring-boot.run.profiles=prod
 ```
 
-```bash
-# Development (default — debug logging, stack traces in errors)
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+Server starts on **http://localhost:8080**.
 
-## Spring Data JPA — Repository Layer
+### 4. API documentation
 
-All database access goes through `JpaRepository` interfaces in `com.repository`.
-Spring generates the SQL implementation at startup — no DAO classes, no SQL strings,
-no ResultSet mapping.
+- **Swagger UI (REST):** http://localhost:8080/swagger-ui.html
+- **GraphiQL (GraphQL):** http://localhost:8080/graphiql
 
-### Repository interfaces
+---
 
-| Repository | Entity | Notable custom queries |
-|---|---|---|
-| `PatientRepository` | `Patient` | `search()` (JPQL multi-field), `findAllPaged()` (native SQL) |
-| `DoctorRepository` | `Doctor` | `findAll(Pageable)` |
-| `DepartmentRepository` | `Department` | `findByName()`, `existsByName()` |
-| `AppointmentRepository` | `Appointment` | `findByStatusSorted()` (JPQL), `findAllWithDetails()` (native JOIN) |
-| `PrescriptionRepository` | `Prescription` | `findByPatientId()`, `findByDoctorId()` |
-| `PrescriptionItemRepository` | `PrescriptionItem` | `findByPrescriptionId()`, `deleteByPrescriptionId()` |
-| `PatientFeedbackRepository` | `PatientFeedback` | `findByFeedbackContainingIgnoreCase()` |
-| `MedicalInventoryRepository` | `MedicalInventory` | `findAll(Pageable)` |
-| `MedicalItemRepository` | `MedicalItem` | `deleteByInventoryId()` (`@Modifying` JPQL) |
-| `PatientAddressRepository` | `PatientAddress` | `findByPatientId()`, `deleteByPatientId()` |
-| `UserRepository` | `User` | `findByEmail()`, `existsByEmail()` |
+## Spring Security Architecture
 
-### Three query types in use
+The diagram below shows how every request is authenticated in this application — from the incoming HTTP request through the filter chain, authentication manager, providers, and finally into the security context.
 
-**1. Derived queries** — Spring reads the method name and generates SQL automatically:
-```java
-// No implementation needed — Spring generates:
-// SELECT * FROM patient WHERE email = ?
-Optional<Patient> findByEmail(String email);
+```mermaid
+flowchart LR
+    REQ([HTTP Request]) --> SFC
+    SFC --> RESP([HTTP Response])
 
-// SELECT * FROM patient WHERE LOWER(name) LIKE LOWER(CONCAT('%', ?, '%'))
-List<Patient> findByNameContainingIgnoreCase(String name);
+    subgraph SFC["Security Filter Chain · SecurityConfig.java"]
+        F1["JwtAuthenticationFilter\nOncePerRequestFilter\n① checks blacklist  ② validates JWT"]
+        F2["UsernamePassword\nAuthenticationFilter"]
+        F3["OAuth2Login\nAuthenticationFilter"]
+    end
+
+    SFC -->|"AuthenticationRequest"| PM
+    PM -->|"AuthenticationResponse"| SFC
+
+    subgraph PM["AuthenticationManager · ProviderManager"]
+        DAP["DaoAuthentication\nProvider"]
+        OAP["OAuth2LoginAuthentication\nProvider"]
+    end
+
+    DAP --> PE["BCryptPassword\nEncoder"]
+    DAP -->|"loadUserByUsername(email)"| UDS
+
+    subgraph UDS["UserService  implements  UserDetailsService"]
+        LU["loads User entity from DB\nby email"]
+    end
+
+    UDS --> DB[("MySQL\nuser table\nuser_type discriminator")]
+
+    OAP -->|"loadUser(OAuth2UserRequest)"| OS
+
+    subgraph OS["OAuth2UserSaveService  implements  OAuth2UserService"]
+        GL["receives Google profile\nsaves new user on first login\nstores displayName + provider"]
+    end
+
+    OS --> DB
+
+    PM -->|"sets"| SC
+
+    subgraph SC["SecurityContextHolder  →  SecurityContext"]
+        AUTH["Authentication\nPrincipal · Credentials · Authorities"]
+    end
+
+    F1 -.->|"blacklist lookup O(1)"| BL["BlackListService\nConcurrentHashMap of token to expiry\npassive cleanup on access"]
+    F1 -.->|"generate / validate"| JS["JwtService\ngenerateToken · isTokenValid\nextractUsername · extractExpiration\nsecret from application.properties"]
+
+    subgraph UD["User  implements  UserDetails"]
+        A1["getAuthorities()  returns user_type column\nADMIN  DOCTOR  NURSE  RECEPTIONIST  PATIENT"]
+        A2["getUsername()  returns email"]
+        A3["getPassword()  returns BCrypt hash"]
+        A4["isAccountNonExpired  isAccountNonLocked\nisCredentialsNonExpired  isEnabled"]
+    end
+
+    UDS -.->|"returns"| UD
 ```
 
-**2. JPQL `@Query`** — references Java class and field names, database-agnostic:
-```java
-// References class name "Patient" and field "name", "email", "phone"
-@Query("SELECT p FROM Patient p WHERE " +
-       "LOWER(p.name) LIKE LOWER(CONCAT('%', :kw, '%')) OR " +
-       "LOWER(p.email) LIKE LOWER(CONCAT('%', :kw, '%')) OR " +
-       "p.phone LIKE CONCAT('%', :kw, '%')")
-List<Patient> search(@Param("kw") String keyword);
+### How the two flows map to the diagram
+
+| Flow | Filter triggered | Provider used | User loaded by |
+|---|---|---|---|
+| `POST /api/v1/auth/login` (JWT) | `UsernamePasswordAuthenticationFilter` | `DaoAuthenticationProvider` | `UserService.loadUserByUsername` |
+| Google OAuth2 (browser) | `OAuth2LoginAuthenticationFilter` | `OAuth2LoginAuthenticationProvider` | `OAuth2UserSaveService.loadUser` |
+| Subsequent JWT requests | `JwtAuthenticationFilter` | _(skips manager — sets context directly)_ | `UserService.loadUserByUsername` |
+
+---
+
+## Authentication
+
+The system supports two separate authentication flows that coexist in the same application.
+
+### Flow 1 — JWT (REST API clients: Postman, JavaFX, mobile)
+
+```
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{ "email": "admin@hhm.com", "password": "secret" }
 ```
 
-**3. Native SQL `@Query(nativeQuery = true)`** — raw MySQL, references actual table/column names:
-```java
-// Raw SQL — fastest, but tied to MySQL syntax
-@Query(value = "SELECT * FROM patient ORDER BY name ASC",
-       countQuery = "SELECT COUNT(*) FROM patient",
-       nativeQuery = true)
-Page<Patient> findAllPaged(Pageable pageable);
+Response:
+
+```json
+{ "token": "eyJhbGc...", "expiresIn": 36000 }
 ```
 
-**4. `@Modifying` JPQL** — for bulk updates/deletes that bypass the entity lifecycle:
-```java
-@Modifying
-@Transactional
-@Query("DELETE FROM MedicalItem m WHERE m.inventoryId = :inventoryId")
-void deleteByInventoryId(@Param("inventoryId") long inventoryId);
+Use the token on every subsequent request:
+
+```
+Authorization: Bearer eyJhbGc...
+```
+
+**Token structure (decoded):**
+
+| Claim | Value |
+|---|---|
+| `sub` | user email |
+| `iat` | issued-at timestamp |
+| `exp` | expiry timestamp (10 hours) |
+
+**Logout (blacklists the token):**
+
+```
+POST /api/v1/auth/logout
+Authorization: Bearer eyJhbGc...
+```
+
+After logout the same token is rejected with **401** on all subsequent requests.
+
+---
+
+### Flow 2 — Google OAuth2 (browser)
+
+1. Open **http://localhost:8080/login**
+2. Click **"Login with Google"**
+3. Complete Google consent — you are redirected to **http://localhost:8080/dashboard**
+4. First-time users are saved with no role (pending). An admin must assign a role before they can access protected endpoints.
+5. Logout via the button on the dashboard — this invalidates the HTTP session.
+
+---
+
+## Registration
+
+```
+POST /api/v1/auth/register
+Content-Type: application/json
 ```
 
 ```json
 {
-  "status": 404,
-  "message": "Patient with id 99 not found.",
-  "data": null
+  "name": "Dr. Alice",
+  "email": "alice@hhm.com",
+  "password": "secret",
+  "type": "DOCTOR",
+  "licenseNumber": "LIC-2024-001",
+  "departmentId": 1
 }
 ```
 
-## Transaction Management
-
-Every service method is annotated with `@Transactional` so database operations are atomic.
-
-### Rules applied
-
-| Annotation | Used on | Effect |
-|---|---|---|
-| `@Transactional` | Write methods (save, delete, update) | If any step throws an exception, all DB changes in that method are rolled back |
-| `@Transactional(readOnly = true)` | Read methods (getAll, search, findBy) | Tells the DB no writes will happen — allows read optimizations, no write lock |
-
-### Example — atomic patient registration
-
-```java
-@Transactional   // if address save fails, patient row is also rolled back
-public long register(...) throws ServiceException {
-    Patient saved = patientRepository.save(p);          // step 1
-    addressRepository.save(new PatientAddress(...));     // step 2 — rolled back if this throws
-    return saved.getId();
-}
-```
-
-### Propagation (default: REQUIRED)
-
-Spring's default propagation `REQUIRED` means: if a transaction already exists, join it;
-if not, create a new one. This ensures that a service method called from another service
-participates in the same transaction rather than opening a new one independently.
-
-### Rollback verification
-
-To verify rollback during testing, trigger an intentional failure on step 2
-(e.g. pass an invalid `patientId` to a nested save). The patient row inserted in step 1
-will not appear in the database — Spring rolls back the whole unit.
+| Field | Required for |
+|---|---|
+| `name`, `email`, `password`, `type` | All roles |
+| `licenseNumber` | DOCTOR |
+| `departmentId` | DOCTOR (optional) |
+| `phone` | PATIENT |
 
 ---
 
-## Caching
+## Roles
 
-`@EnableCaching` is active on `HhmApplication`. Spring Cache stores results in memory
-(simple map by default) so repeated read requests skip the database entirely.
-
-### What is cached
-
-| Cache name | Cached by | Evicted when |
+| Role | Discriminator value | Description |
 |---|---|---|
-| `"patients"` | `getAll()`, `search(keyword)` | `register()`, `update()`, `remove()` |
-| `"doctors"` | `getAll()`, `search(keyword)` | `register()`, `update()`, `remove()` |
-| `"appointments"` | `getAll()`, `findByStatus()`, `search()` | `book()`, `reschedule()`, `cancel()`, `remove()` |
-| `"prescriptions"` | `getAll()`, `getByPatient(id)` | `issue()`, `update()`, `cancel()`, `remove()` |
-| `"inventory"` | `getAll()`, `search(keyword)` | `add()`, `update()`, `remove()` |
-| `"inventory-lowstock"` | `getLowStock()` | `add()`, `update()`, `remove()` |
-| `"feedback"` | `getAll()`, `search(keyword)`, `getByPatient(id)` | `submit()`, `remove()` |
+| `ADMIN` | `ADMIN` | Full system access |
+| `DOCTOR` | `DOCTOR` | Clinical staff |
+| `NURSE` | `NURSE` | Nursing staff |
+| `RECEPTIONIST` | `RECEPTIONIST` | Front desk |
+| `PATIENT` | `PATIENT` | End user |
 
-### How it works
+Roles are stored in the `user_type` discriminator column of the `user` table using JPA JOINED inheritance. `getAuthorities()` reads directly from that column — no separate roles table.
+
+---
+
+## Role-Based Access Control (RBAC)
+
+Every endpoint is guarded with `@PreAuthorize`. Use `hasAuthority('ROLE')` — not `hasRole()` — because the discriminator values are stored without the `ROLE_` prefix.
+
+| Endpoint | Allowed roles |
+|---|---|
+| `POST /api/v1/doctors` | ADMIN |
+| `PUT /api/v1/doctors/{id}` | ADMIN or the owning DOCTOR |
+| `DELETE /api/v1/doctors/{id}` | ADMIN |
+| `POST /api/v1/patients` | ADMIN |
+| `PUT /api/v1/patients/{id}` | ADMIN or the owning PATIENT |
+| `DELETE /api/v1/patients/{id}` | ADMIN |
+| `POST /api/v1/appointments` | PATIENT, RECEPTIONIST |
+| `PATCH /api/v1/appointments/{id}/cancel` | ADMIN, RECEPTIONIST |
+| `DELETE /api/v1/appointments/{id}` | ADMIN |
+| `POST /api/v1/feedback` | PATIENT, RECEPTIONIST |
+| `GET /api/v1/admin/**` | ADMIN |
+
+Owner-only example — only the doctor with matching `id` can update their own record:
+
+```java
+@PreAuthorize("hasAuthority('ADMIN') or (hasAuthority('DOCTOR') and authentication.principal.id == #id)")
+```
+
+---
+
+## Google OAuth2 — Pending User Management
+
+New Google users are saved as base `User` rows with no `user_type` discriminator. An admin must assign a role before they can call protected endpoints.
+
+**List pending users:**
 
 ```
-First call  → cache miss → hits database → stores result in cache → returns data
-Second call → cache hit  → returns cached result (0 ms DB time)
-Write call  → @CacheEvict clears the cache → next read hits DB again (fresh data)
+GET /api/v1/admin/users/pending
+Authorization: Bearer <admin-token>
 ```
 
-### Cache invalidation strategy
+**Assign a role:**
 
-All write methods use `@CacheEvict(value = "...", allEntries = true)` — the entire cache
-for that entity is cleared after any write. This is safe: reads are cheap, staleness is not.
+```
+PUT /api/v1/admin/users/{id}/role
+Authorization: Bearer <admin-token>
+Content-Type: application/json
+```
 
-- **Left panel** — write your query or mutation here
-- **Right panel** — response appears here after you run
-- **Variables panel** — click "Variables" at the bottom to open it; use JSON variables
-- **Documentation Explorer** — click the book icon (top-left) to browse the full schema
-- **Run button** — the play button (or Ctrl + Enter) executes the query
+```json
+{ "role": "PATIENT", "phone": "0788000001" }
+```
 
-## Pagination and Sorting
+```json
+{ "role": "DOCTOR", "licenseNumber": "LIC-2024-002", "departmentId": 2 }
+```
 
-All list endpoints support `Pageable` via `JpaRepository.findAll(Pageable pageable)`.
+```json
+{ "role": "NURSE" }
+```
 
-### Swagger UI usage
+The endpoint deletes the pending base `User` row and creates the proper subclass record (Patient/Doctor/etc.) using the `display_name` from Google as the name.
 
-**List all patients:**
+---
+
+## CORS and CSRF
+
+### CORS (Cross-Origin Resource Sharing)
+
+CORS is a **browser** restriction. When JavaScript at `http://frontend.com` calls `http://localhost:8080`, the browser first sends an `OPTIONS` preflight request. The server must respond with the correct `Access-Control-Allow-*` headers or the browser blocks the response.
+
+**Current configuration** (`SecurityConfig.corsConfigurationSource`):
+
+```
+Allowed origins:  * (all — dev only; restrict to your domain in production)
+Allowed methods:  GET, POST, PUT, PATCH, DELETE, OPTIONS
+Allowed headers:  Authorization, Content-Type, Accept
+Exposed headers:  Authorization
+Max age:          3600s (preflight cached for 1 hour)
+```
+
+**Production change:** replace `setAllowedOriginPatterns(List.of("*"))` with your frontend domain:
+
+```java
+config.setAllowedOriginPatterns(List.of("https://your-frontend.com"));
+```
+
+CORS does **not** apply to Postman, curl, or JavaFX — only browsers enforce it.
+
+### CSRF (Cross-Site Request Forgery)
+
+CSRF is disabled in this application because the REST API is **stateless** — it uses JWT Bearer tokens, which browsers do not automatically attach to cross-origin requests (unlike cookies). There is therefore no CSRF attack surface for the API.
+
+The OAuth2 web logout form uses `method="post"`, which Spring Security validates internally — this is safe even with CSRF disabled because the logout session is managed server-side.
+
+| | CORS | CSRF |
+|---|---|---|
+| **Protects against** | Unauthorized cross-origin reads | Forged state-changing requests |
+| **Enforced by** | Browser | Server |
+| **Needed here** | Yes — browsers block API calls without it | No — stateless JWT has no CSRF attack surface |
+| **Disabled by** | Cannot be disabled in browser | `AbstractHttpConfigurer::disable` |
+
+---
+
+## JWT Implementation Details
+
+| Aspect | Detail |
+|---|---|
+| Library | `io.jsonwebtoken:jjwt` 0.12.x |
+| Signing algorithm | HMAC-SHA256 (`HS256`) |
+| Secret storage | `${spring.security.jwt.secret}` in properties |
+| Token expiry | 10 hours |
+| Filter | `JwtAuthenticationFilter` — `OncePerRequestFilter` before `UsernamePasswordAuthenticationFilter` |
+| Blacklist | `BlackListService` — `ConcurrentHashMap<token, expiry>` |
+| Blacklist cleanup | Passive — expired entries removed on first access after expiry |
+
+**Token validation flow per request:**
+
+```
+Request arrives → JwtAuthenticationFilter
+  → Is token in blacklist?         → Yes → pass through unauthenticated (401)
+  → Extract email from claims      → Fail (tampered/expired) → 401
+  → Load UserDetails from DB
+  → isTokenValid(token, user)?     → No → pass through unauthenticated (401)
+  → Set SecurityContext
+  → Proceed to controller
+```
+
+---
+
+## DSA in Security
+
+| Concept | Implementation |
+|---|---|
+| **Hashing** | BCrypt for passwords (`BCryptPasswordEncoder`, cost factor 10) |
+| **HMAC signing** | HMAC-SHA256 for JWT signatures — keyed hash prevents forgery |
+| **HashMap lookup** | `ConcurrentHashMap` in `BlackListService` — O(1) token revocation check |
+| **In-memory cache** | `AppCache` — static `HashMap<Class, List>` for entity caching |
+| **Spring Cache** | `@Cacheable` / `@CacheEvict` on all service read/write methods |
+
+**BCrypt vs plain hashing:**
+BCrypt is a deliberately slow adaptive function. Unlike SHA-256 (fast, deterministic), BCrypt incorporates a random salt and a cost factor, making brute-force and rainbow table attacks impractical even if the hash database is stolen.
+
+**Why `ConcurrentHashMap` for the blacklist:**
+JWT validation happens on every request. Under concurrent load, a plain `HashMap` would have race conditions on `put` and `get`. `ConcurrentHashMap` provides lock-free reads and segment-locked writes, keeping the O(1) lookup while being thread-safe.
+
+---
+
+## Security Event Logging
+
+All controller and service activity is captured by `LoggingAop`:
+
+| Advice | Trigger | Level |
+|---|---|---|
+| `@Before` controller | Method called — logs name + args | INFO |
+| `@AfterReturning` controller | Successful return — logs response | INFO |
+| `@AfterThrowing` controller | Exception escaped — logs message | ERROR |
+| `@Around` controller | Measures elapsed time in ms | INFO |
+| `@Before` service | Service method called — logs class + method + args | DEBUG |
+| `@AfterReturning` service | Service returned — logs result | DEBUG |
+| `@AfterThrowing` service | Business rule violation — logs message | WARN |
+
+**Log output example:**
+
+```
+[CTRL] --> login | args: [LoginRequest(email=admin@hhm.com)]
+[SVC]  --> AuthService.createUser | args: [RegisterRequest(...)]
+[SVC]  OK  createUser | returned: User(id=5, email=admin@hhm.com)
+[CTRL] OK  login | returned: LoginResponse(token=eyJhbGc...)
+[CTRL] TIME login completed in 312 ms
+[CTRL] <-- login | exited (success or error)
+```
+
+Authentication failures (wrong password, expired token) produce ERROR-level output via the `@AfterThrowing` controller advice.
+
+---
+
+## Testing with Postman
+
+### 1. Login with the seeded admin account
+
+The `DataSeeder` creates an admin on first boot — no manual registration needed.
+
+```
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{ "email": "admin@hhm.rw", "password": "admin123" }
+```
+
+### 2. Register a patient (the only self-registration allowed)
+
+```
+POST http://localhost:8080/api/v1/auth/register
+Content-Type: application/json
+
+{ "name": "Jane Doe", "email": "jane@example.com", "password": "secret", "type": "PATIENT", "phone": "0788000001" }
+```
+
+> `type: ADMIN / DOCTOR / NURSE / RECEPTIONIST` → **403 Forbidden**.
+> Staff accounts are created by an authenticated admin via `POST /api/v1/admin` endpoints.
+
+### 3. Copy the token from the login response
+
+Copy the `token` value from the response.
+
+### 3. Call a protected endpoint
+
+In Postman, go to the **Authorization** tab → select **Bearer Token** → paste the token.
+
+```
+GET http://localhost:8080/api/v1/admin/users
+Authorization: Bearer eyJhbGc...
+```
+
+### 4. Verify token rejection
+
+- Call any protected endpoint with no token → **401 Unauthorized**
+- Modify the token's payload → **401 Unauthorized** (signature mismatch)
+- Logout, then reuse the same token → **401 Unauthorized** (blacklisted)
+
+### 5. Verify RBAC
+
+```
+GET http://localhost:8080/api/v1/admin/users
+Authorization: Bearer <patient-token>   → 403 Forbidden
+
+POST http://localhost:8080/api/v1/appointments
+Authorization: Bearer <doctor-token>    → 403 Forbidden
+```
+
+---
+
+## GraphQL API — Demo Queries & Mutations
+
+Open **http://localhost:8080/graphiql**, paste a JWT token in the top bar, and copy-paste any operation below.
+
+---
+
+### Auth
+
+#### Login (get a JWT token)
+```graphql
+mutation {
+  login(input: {
+    email: "admin@hhm.rw"
+    password: "admin123"
+  }) {
+    token
+    expiresIn
+  }
+}
+```
+
+#### Register a new patient account (public)
+```graphql
+mutation {
+  register(input: {
+    name: "Jane Doe"
+    email: "jane@example.com"
+    password: "secret123"
+  }) {
+    id
+    email
+    userType
+  }
+}
+```
+
+#### Who am I? _(requires token)_
+```graphql
+query {
+  me {
+    id
+    email
+    userType
+    displayName
+    provider
+  }
+}
+```
+
+#### Logout — blacklists the current token _(requires token)_
+```graphql
+mutation {
+  logout
+}
+```
+
+---
+
+### Admin — user management _(ADMIN token required)_
+
+#### List all system users
+```graphql
+query {
+  users {
+    id
+    email
+    userType
+    name
+    displayName
+    provider
+  }
+}
+```
+
+#### List all admins
+```graphql
+query {
+  admins {
+    id
+    email
+    name
+  }
+}
+```
+
+#### List pending Google users (no role assigned yet)
+```graphql
+query {
+  pendingUsers {
+    id
+    email
+    displayName
+    provider
+  }
+}
+```
+
+#### Create a new admin account
+```graphql
+mutation {
+  createAdmin(input: {
+    name: "New Admin"
+    email: "admin2@hhm.rw"
+    password: "admin123"
+  })
+}
+```
+
+#### Assign a role to a pending Google user
+```graphql
+mutation {
+  assignRole(id: 5, input: {
+    role: "PATIENT"
+    phone: "0788000001"
+  }) {
+    id
+    email
+    userType
+  }
+}
+```
+
+```graphql
+mutation {
+  assignRole(id: 6, input: {
+    role: "DOCTOR"
+    licenseNumber: "LIC-2025-001"
+    departmentId: "1"
+  }) {
+    id
+    email
+    userType
+  }
+}
+```
+
+#### Delete a user
+```graphql
+mutation {
+  deleteUser(id: 10)
+}
+```
+
+---
+
+### Patients _(ADMIN token required for mutations)_
+
+#### List all patients
 ```graphql
 query {
   patients {
+    id
+    name
+    email
+    phone
+  }
+}
+```
+
+#### Search patients by name
+```graphql
+query {
+  patients(search: "Alain") {
     id
     name
     phone
@@ -224,33 +617,25 @@ query {
   }
 }
 ```
-GET /api/v1/patients?page=0&size=10&sort=name,asc
-GET /api/v1/appointments?page=1&size=5&sort=appointmentDate,desc
-```
 
-| Parameter | Default | Description |
-|---|---|---|
-| `page` | 0 | Page number (0-indexed) |
-| `size` | 20 | Records per page |
-| `sort` | name | Field name + `,asc` or `,desc` |
-
-### Response shape with pagination
-
-```json
-{
-  "status": 200,
-  "message": "Patients retrieved",
-  "data": {
-    "content": [ { "id": 1, "name": "Alice" }, ... ],
-    "totalElements": 87,
-    "totalPages": 9,
-    "number": 0,
-    "size": 10
+#### Paginated patient list
+```graphql
+query {
+  patientsPaged(page: 0, size: 10) {
+    content {
+      id
+      name
+      email
+    }
+    totalElements
+    totalPages
+    pageNumber
+    pageSize
   }
 }
 ```
 
-**Get one patient by ID:**
+#### Get single patient
 ```graphql
 query {
   patient(id: 1) {
@@ -263,108 +648,133 @@ query {
 }
 ```
 
-**List all doctors with their department ID:**
+#### Register a patient
+```graphql
+mutation {
+  registerPatient(input: {
+    name: "Alain Habimana"
+    phone: "0788111222"
+    email: "alain@example.com"
+    address: "KG 123 St"
+    district: "Gasabo"
+    sector: "Remera"
+    cell: "Cell 1"
+    village: "Village 2"
+  })
+}
+```
+
+#### Delete a patient
+```graphql
+mutation {
+  deletePatient(id: 1)
+}
+```
+
+---
+
+### Doctors _(ADMIN token required for mutations)_
+
+#### List all doctors
 ```graphql
 query {
   doctors {
     id
     name
+    licenseNumber
     departmentId
+  }
+}
+```
+
+#### Search doctors
+```graphql
+query {
+  doctors(search: "Emmanuel") {
+    id
+    name
     licenseNumber
   }
 }
 ```
 
-## Using Swagger UI (REST API)
-
-Swagger UI is auto-generated from annotations — no manual documentation needed.
-
-**URL:** http://localhost:8080/swagger-ui.html
-
-### How to test an endpoint
-
-1. Open the URL → expand a tag (Patient, Doctor, Appointment, etc.)
-2. Click an endpoint → click **"Try it out"**
-3. Edit the request body and click **"Execute"**
-4. See the response below — body, status code, and curl command
-
-### Request body example — register patient
-
-```json
-{
-  "name": "Alice Uwimana",
-  "phone": "0781234567",
-  "email": "alice@example.com",
-  "address": "KG 5 Ave",
-  "district": "Kigali",
-  "sector": "Gasabo",
-  "cell": "Bumbogo",
-  "village": "Kagugu"
+#### Get single doctor
+```graphql
+query {
+  doctor(id: 1) {
+    id
+    name
+    licenseNumber
+    departmentId
+  }
 }
 ```
 
-### Response envelope
-
-Every response — success or error — uses the same shape:
-
-```json
-{
-  "status": 201,
-  "message": "Patient registered",
-  "data": { "id": 7 }
-}
-```
-
-```json
-{
-  "status": 409,
-  "message": "A patient with email \"alice@example.com\" already exists.",
-  "data": null
-}
-```
-
-### Example mutations
-
-**Register a patient:**
+#### Register a doctor
 ```graphql
 mutation {
-  registerPatient(name: "Bob Habimana", phone: "0789000001", email: "bob@example.com") {
-    id
-    name
-  }
+  registerDoctor(input: {
+    name: "Dr. Alice Uwimana"
+    departmentId: "1"
+    licenseNumber: "LIC-2025-010"
+  })
 }
 ```
 
-## Using GraphiQL (GraphQL API)
+#### Delete a doctor
+```graphql
+mutation {
+  deleteDoctor(id: 1)
+}
+```
 
-**URL:** http://localhost:8080/graphiql
+---
 
-### Example queries
+### Departments _(ADMIN token required for mutations)_
 
-**List all patients:**
+#### List all departments
 ```graphql
 query {
-  patients {
+  departments {
     id
     name
-    phone
-    email
   }
 }
 ```
 
-**Search patients by keyword:**
+#### Create a department
+```graphql
+mutation {
+  createDepartment(name: "Ophthalmology")
+}
+```
+
+#### Delete a department
+```graphql
+mutation {
+  deleteDepartment(id: 11)
+}
+```
+
+---
+
+### Appointments _(PATIENT or RECEPTIONIST to book; ADMIN or RECEPTIONIST to cancel)_
+
+#### List all appointments
 ```graphql
 query {
-  patients(search: "Alice") {
+  appointments {
     id
-    name
-    email
+    patientName
+    doctorName
+    departmentName
+    appointmentDate
+    status
   }
 }
 ```
 
-**Filter appointments by status:**
+#### Filter by status
 ```graphql
 query {
   appointments(status: "Scheduled") {
@@ -376,7 +786,162 @@ query {
 }
 ```
 
-**Low-stock inventory:**
+#### Search appointments
+```graphql
+query {
+  appointments(search: "Habimana") {
+    id
+    patientName
+    doctorName
+    status
+  }
+}
+```
+
+#### Book an appointment _(PATIENT or RECEPTIONIST token)_
+```graphql
+mutation {
+  bookAppointment(input: {
+    patientId: "1"
+    doctorId: "2"
+    appointmentDate: "2026-11-20T10:00:00"
+  })
+}
+```
+
+#### Cancel an appointment _(ADMIN or RECEPTIONIST token)_
+```graphql
+mutation {
+  cancelAppointment(id: 1)
+}
+```
+
+#### Delete an appointment _(ADMIN token)_
+```graphql
+mutation {
+  deleteAppointment(id: 1)
+}
+```
+
+---
+
+### Prescriptions _(DOCTOR to issue; DOCTOR or ADMIN to cancel; ADMIN to delete)_
+
+#### List all prescriptions
+```graphql
+query {
+  prescriptions {
+    id
+    patientId
+    doctorId
+    issuedAt
+    status
+    notes
+  }
+}
+```
+
+#### Issue a prescription _(DOCTOR token)_
+```graphql
+mutation {
+  issuePrescription(input: {
+    patientId: "1"
+    doctorId: "1"
+    notes: "Take with food. Avoid alcohol."
+  })
+}
+```
+
+#### Cancel a prescription _(DOCTOR or ADMIN token)_
+```graphql
+mutation {
+  cancelPrescription(id: 1)
+}
+```
+
+#### Delete a prescription _(ADMIN token)_
+```graphql
+mutation {
+  deletePrescription(id: 1)
+}
+```
+
+---
+
+### Feedback _(RECEPTIONIST or PATIENT to submit; ADMIN, NURSE, or RECEPTIONIST to delete)_
+
+#### List all feedback
+```graphql
+query {
+  feedback {
+    id
+    patientId
+    feedback
+    privateNotes
+    issuedAt
+  }
+}
+```
+
+#### Search feedback
+```graphql
+query {
+  feedback(search: "excellent") {
+    id
+    feedback
+    issuedAt
+  }
+}
+```
+
+#### Submit feedback _(PATIENT or RECEPTIONIST token)_
+```graphql
+mutation {
+  submitFeedback(input: {
+    patientId: "1"
+    feedback: "Excellent service, very professional staff."
+    privateNotes: "Patient expressed high satisfaction."
+  })
+}
+```
+
+#### Delete feedback _(ADMIN, NURSE, or RECEPTIONIST token)_
+```graphql
+mutation {
+  deleteFeedback(id: 1)
+}
+```
+
+---
+
+### Inventory _(low-stock and mutations require ADMIN, NURSE, or RECEPTIONIST)_
+
+#### List all inventory items _(any authenticated user)_
+```graphql
+query {
+  inventory {
+    id
+    name
+    sku
+    quantityOnHand
+    reorderLevel
+  }
+}
+```
+
+#### Search inventory
+```graphql
+query {
+  inventory(search: "Amoxicillin") {
+    id
+    name
+    sku
+    quantityOnHand
+  }
+}
+```
+
+#### Low-stock items _(ADMIN, NURSE, or RECEPTIONIST token)_
 ```graphql
 query {
   lowStockItems {
@@ -389,72 +954,38 @@ query {
 }
 ```
 
-### Example mutations
-
-**Register a patient:**
+#### Add an inventory item _(ADMIN, NURSE, or RECEPTIONIST token)_
 ```graphql
 mutation {
-  registerPatient(name: "Bob Habimana", phone: "0789000001", email: "bob@example.com") {
-    id
-    name
-  }
+  addInventoryItem(input: {
+    name: "Paracetamol 1000mg"
+    sku: "MED-PCM-1000"
+    quantityOnHand: 500
+    reorderLevel: 100
+  })
 }
 ```
 
-**Book an appointment:**
+#### Delete an inventory item _(ADMIN or RECEPTIONIST token)_
 ```graphql
 mutation {
-  bookAppointment(
-    patientId: 1,
-    doctorId: 2,
-    appointmentDate: "2027-03-10T10:00:00",
-    status: "Scheduled"
-  ) {
-    id
-    status
-  }
-}
-```
-
-**Delete a record:**
-```graphql
-mutation {
-  deletePatient(id: 5)
+  deleteInventoryItem(id: 1)
 }
 ```
 
 ---
 
-## REST API Reference
+### Seeded demo credentials
 
-| Method | Endpoint | Description |
+| Role | Email | Password |
 |---|---|---|
-| GET | /api/v1/patients | List patients (page, size, sort, search) |
-| POST | /api/v1/patients | Register patient |
-| PUT | /api/v1/patients/{id} | Update patient |
-| DELETE | /api/v1/patients/{id} | Delete patient |
-| GET | /api/v1/doctors | List doctors |
-| POST | /api/v1/doctors | Register doctor |
-| PUT | /api/v1/doctors/{id} | Update doctor |
-| DELETE | /api/v1/doctors/{id} | Delete doctor (blocked if has scheduled appointments) |
-| GET | /api/v1/appointments | List appointments (page, size, sort, status) |
-| POST | /api/v1/appointments | Book appointment |
-| PUT | /api/v1/appointments/{id} | Reschedule |
-| PATCH | /api/v1/appointments/{id}/cancel | Cancel |
-| DELETE | /api/v1/appointments/{id} | Delete |
-| GET | /api/v1/prescriptions | List prescriptions |
-| POST | /api/v1/prescriptions | Issue prescription |
-| PUT | /api/v1/prescriptions/{id} | Update |
-| PATCH | /api/v1/prescriptions/{id}/cancel | Cancel |
-| DELETE | /api/v1/prescriptions/{id} | Delete |
-| GET | /api/v1/inventory | List inventory (page, size) |
-| GET | /api/v1/inventory/low-stock | Items at or below reorder level |
-| POST | /api/v1/inventory | Add item |
-| PUT | /api/v1/inventory/{id} | Update item |
-| DELETE | /api/v1/inventory/{id} | Delete item (cascade deletes child MedicalItems) |
-| GET | /api/v1/feedback | List feedback |
-| POST | /api/v1/feedback | Submit feedback |
-| DELETE | /api/v1/feedback/{id} | Delete feedback |
+| Admin | `admin@hhm.rw` | `admin123` |
+| Doctor (1–10) | `doctor1@hhm.rw` | `doctor123` |
+| Nurse (1–30) | `nurse1@hhm.rw` | `nurse123` |
+| Patient (1–100) | `patient1@hhm.rw` | `patient123` |
+
+> **Receptionist** is not seeded. Create one via:
+> `POST /api/v1/admin` with admin token and `"type": "RECEPTIONIST"`.
 
 ---
 
@@ -462,129 +993,62 @@ mutation {
 
 | Profile | File | DDL auto | Logging | SQL printed |
 |---|---|---|---|---|
-| `dev` (default) | application-dev.properties | `update` | DEBUG | Yes |
-| `test` | application-test.properties | `create-drop` | WARN | No |
-| `prod` | application-prod.properties | `validate` | INFO | No |
+| `dev` (default) | `application-dev.properties` | `update` | DEBUG | Yes |
+| `prod` | `application-prod.properties` | `validate` | INFO | No |
 
-`ddl-auto` values explained:
-- `update` — Hibernate adds missing columns/tables, never drops existing data (safe for dev)
-- `create-drop` — drops and recreates schema on every run (good for automated tests)
-- `validate` — Hibernate checks schema matches entities, throws on mismatch, never alters (safe for prod)
+```bash
+# Development
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
----
-
-## AOP Logging
-
-Centralized aspect (`com.hhm.aop.LoggingAop`) intercepts both controller and service layers:
-
-| Advice | Layer | What it logs |
-|---|---|---|
-| `@Before` | Controller | Method name + arguments |
-| `@After` | Controller | Method exited (always — success or error) |
-| `@AfterReturning` | Controller | Return value on success |
-| `@AfterThrowing` | Controller | Exception message on failure |
-| `@Around` | Controller | Elapsed time in milliseconds |
-| `@Before` | Service | Service class + method name + arguments |
-| `@AfterReturning` | Service | Return value (DEBUG level) |
-| `@AfterThrowing` | Service | Business rule violations (WARN level) |
-
-Log output example (dev profile):
+# Production
+mvn spring-boot:run -Dspring-boot.run.profiles=prod
 ```
-[CTRL] --> bookAppointment | args: [AppointmentRequest(patientId=1, ...)]
-[SVC]  --> AppointmentService.book | args: [Appointment(id=0, patientId=1, ...)]
-[SVC]  OK  book | returned: null
-[CTRL] OK  bookAppointment | returned: <201 CREATED ...>
-[CTRL] TIME bookAppointment completed in 23 ms
-[CTRL] <-- bookAppointment | exited (success or error)
-```
-
----
-
-## REST vs GraphQL — When to Use Each
-
-| Dimension | REST | GraphQL |
-|---|---|---|
-| **Data shape** | Fixed — client gets all fields the endpoint returns | Flexible — client picks only the fields it needs |
-| **Multiple resources** | N HTTP calls for N related entities | One query fetches all related data |
-| **HTTP caching** | Works natively on GET (URL-based) | Does not apply — GraphQL uses POST |
-| **Error format** | HTTP status codes (404, 409, 422, 500) | Always 200; errors in `errors[]` array |
-| **Documentation** | Swagger UI auto-generated from annotations | GraphiQL schema explorer auto-generated |
-| **Best for** | CRUD operations, mobile clients, public APIs | Dashboards, complex joins, flexible frontends |
-
-**Recommendation for HHM:** Use REST for simple CRUD (register patient, add inventory).
-Use GraphQL for complex reads like the appointment dashboard that joins patient name,
-doctor name, and department in a single query.
 
 ---
 
 ## Project Structure
 
 ```
-src/main/java/
-  com/
-    aop/        LoggingAop.java              @Aspect — controller + service logging
-    controller/ PatientController.java       REST controllers (@RestController)
-                DoctorController.java
-                AppointmentController.java
-                PrescriptionController.java
-                InventoryController.java
-                FeedbackController.java
-                GlobalExceptionHandler.java  @RestControllerAdvice — centralized errors
-    dto/        PatientRequest.java          Validated request bodies (@Valid DTOs)
-                DoctorRequest.java
-                AppointmentRequest.java
-                PrescriptionRequest.java
-                InventoryRequest.java
-                FeedbackRequest.java
-                ApiResult.java               Generic response envelope {status, message, data}
-    graphql/    PatientResolver.java         GraphQL resolvers (@QueryMapping / @MutationMapping)
-                DoctorResolver.java
-                AppointmentResolver.java
-                PrescriptionResolver.java
-                InventoryResolver.java
-                FeedbackResolver.java
-                DepartmentResolver.java
-    hhm/        HhmApplication.java          @SpringBootApplication + @EnableCaching + @EnableAspectJAutoProxy
-    model/      Patient.java                 JPA entities (@Entity, @Id, @GeneratedValue)
-                Doctor.java
-                Department.java
-                Appointment.java
-                AppointmentView.java         JOIN projection DTO — not an entity
-                Prescription.java
-                PrescriptionItem.java
-                PatientFeedback.java
-                MedicalInventory.java
-                MedicalItem.java
-                PatientAddress.java
-                User.java                    @ToString(exclude="password") — password never in logs
-    repository/ PatientRepository.java       JpaRepository interfaces — derived + JPQL + native SQL
-                DoctorRepository.java
-                DepartmentRepository.java
-                AppointmentRepository.java
-                PrescriptionRepository.java
-                PrescriptionItemRepository.java
-                PatientFeedbackRepository.java
-                MedicalInventoryRepository.java
-                MedicalItemRepository.java
-                PatientAddressRepository.java
-                UserRepository.java
-    service/    PatientService.java          Business rules + @Transactional + @Cacheable
-                DoctorService.java
-                AppointmentService.java
-                PrescriptionService.java
-                MedicalInventoryService.java
-                PatientFeedbackService.java
-                ServiceException.java        Typed exception (NOT_FOUND / CONFLICT / VALIDATION)
-    validation/ FutureDateTime.java          Custom @Constraint annotation
-                FutureDateTimeValidator.java
+src/main/java/com/hhm/
+  aop/
+    LoggingAop.java              @Aspect — controller + service logging (all 5 advice types)
+  controller/
+    AuthController.java          POST /auth/login, /auth/register, /auth/logout
+    AdminController.java         Admin-only: users, pending, role assignment
+    GoogleLoginController.java   GET /login, /dashboard (OAuth2 web flow)
+    DoctorController.java
+    PatientController.java
+    AppointmentController.java
+    FeedbackController.java
+    PrescriptionController.java
+    InventoryController.java
+    GlobalExceptionHandler.java  @RestControllerAdvice — centralized error responses
+  dto/
+    AssignRoleRequest.java       role + phone / licenseNumber / departmentId
+    RegisterRequest.java
+    LoginRequest.java
+    LoginResponse.java
+    Type.java                    Enum: ADMIN, DOCTOR, NURSE, RECEPTIONIST, PATIENT
+    ApiResult.java               Generic response envelope {status, message, data}
+  model/
+    User.java                    Base entity — JOINED inheritance, discriminator user_type
+    Admin.java / Doctor.java / Nurse.java / Receptionist.java / Patient.java
+  repository/
+    UserRepository.java          findByEmail, findByUserTypeIsNull (pending OAuth2 users)
+  service/
+    AuthService.java             createUser, promoteOAuthUser
+    JwtService.java              generate, validate, extract — secret from properties
+    BlackListService.java        ConcurrentHashMap token revocation
+    OAuth2UserSaveService.java   Persists Google users on first login
+    UserFactory.java             switch-based user subclass builder
+  util/
+    SecurityConfig.java          FilterChain, CORS, OAuth2, logout
+    JwtAuthenticationFilter.java OncePerRequestFilter — blacklist check + JWT validation
+    AppCache.java                Static HashMap-based entity cache
 
-src/main/resources/
-  graphql/
-    schema.graphqls                GraphQL schema — types, Query, Mutation
-  application.properties           Shared config + active profile (dev)
-  application-dev.properties       Dev: local DB, DEBUG logging, ddl-auto=update
-  application-prod.properties      Prod: env-var DB, INFO logging, ddl-auto=validate
-  application-test.properties      Test: hhm_test DB, WARN logging, ddl-auto=create-drop
+src/test/java/com/hhm/
+  controller/
+    SecurityAccessControlTest.java  30+ MockMvc tests covering all role combinations
 ```
 
 ---

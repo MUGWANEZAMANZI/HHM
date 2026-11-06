@@ -150,4 +150,5 @@ public class PatientController {
         patientService.remove(id);
         return ResponseEntity.noContent().build();
     }
+
 }

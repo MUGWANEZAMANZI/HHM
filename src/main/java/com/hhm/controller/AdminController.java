@@ -1,6 +1,7 @@
 package com.hhm.controller;
 
 import com.hhm.dto.ApiResult;
+import com.hhm.dto.AssignRoleRequest;
 import com.hhm.dto.RegisterRequest;
 import com.hhm.dto.Type;
 import com.hhm.model.Admin;
@@ -92,6 +93,35 @@ public class AdminController {
         admin.setName(name);
         adminRepository.save(admin);
         return ResponseEntity.ok(ApiResult.success("Admin " + id + " updated", null));
+    }
+
+    @GetMapping("/users/pending")
+    @Operation(summary = "List pending Google users",
+               description = "Returns all users who signed in via Google and have not yet been assigned a role.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Pending users returned successfully")
+    })
+    public ResponseEntity<ApiResult<List<User>>> getPendingUsers() {
+        List<User> pending = userRepository.findByUserTypeIsNull();
+        return ResponseEntity.ok(ApiResult.success(pending.size() + " pending user(s)", pending));
+    }
+
+    @PutMapping("/users/{id}/role")
+    @Operation(summary = "Assign role to a pending Google user",
+               description = "Deletes the base user row and re-creates it as the correct subclass. " +
+                             "Provide phone for PATIENT, licenseNumber (and optionally departmentId) for DOCTOR.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Role assigned and user promoted successfully"),
+        @ApiResponse(responseCode = "400", description = "Missing required fields for the chosen role"),
+        @ApiResponse(responseCode = "404", description = "User not found"),
+        @ApiResponse(responseCode = "409", description = "User already has a role")
+    })
+    public ResponseEntity<ApiResult<User>> assignRole(
+            @PathVariable long id,
+            @Valid @RequestBody AssignRoleRequest req) {
+        User promoted = authService.promoteOAuthUser(id, req);
+        return ResponseEntity.ok(ApiResult.success(
+                "User promoted to " + req.getRole(), promoted));
     }
 
     @DeleteMapping("/users/{id}")

@@ -7,7 +7,6 @@ import java.util.Collection;
 import java.util.List;
 
 import lombok.ToString;
-import org.hibernate.validator.constraints.UniqueElements;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,6 +23,13 @@ public class User implements UserDetails {
     private String email;
     private String password;
     private LocalDateTime registeredAt;
+
+    // Populated for OAuth2 users (e.g. Google); null for form-registered users.
+    @Column(name = "display_name")
+    private String displayName;
+
+    // "GOOGLE" for OAuth2 users; null for form-registered users.
+    private String provider;
 
     // Reads the discriminator column so getAuthorities() can derive the role.
     // insertable/updatable = false because Hibernate owns this column.
@@ -45,6 +51,7 @@ public class User implements UserDetails {
     public void setEmail(String email) { this.email = email; }
 
     // Derives DOCTOR, PATIENT, ADMIN, etc. directly from the discriminator value.
+    // Pending OAuth2 users have userType null and get no authorities until promoted.
     // Use hasAuthority('DOCTOR') in @PreAuthorize — NOT hasRole (which adds ROLE_ prefix).
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -63,4 +70,12 @@ public class User implements UserDetails {
 
     public LocalDateTime getRegisteredAt() { return registeredAt; }
     public void setRegisteredAt(LocalDateTime registeredAt) { this.registeredAt = registeredAt; }
+
+    public String getUserType() { return userType; }
+
+    public String getDisplayName() { return displayName; }
+    public void setDisplayName(String displayName) { this.displayName = displayName; }
+
+    public String getProvider() { return provider; }
+    public void setProvider(String provider) { this.provider = provider; }
 }

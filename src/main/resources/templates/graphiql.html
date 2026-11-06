@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HHM — GraphQL API</title>
+  <link rel="stylesheet" href="https://unpkg.com/graphiql@3.7.1/graphiql.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: #0d1117;
+      color: #e6edf3;
+    }
+
+    /* ── Top bar ── */
+    #topbar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 16px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      flex-shrink: 0;
+    }
+
+    #topbar h1 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #58a6ff;
+      white-space: nowrap;
+      letter-spacing: 0.03em;
+    }
+
+    #topbar h1 span { color: #f0883e; }
+
+    .token-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .token-label {
+      font-size: 11px;
+      color: #8b949e;
+      white-space: nowrap;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    #token-input {
+      flex: 1;
+      min-width: 0;
+      padding: 5px 10px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #e6edf3;
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      font-size: 11px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    #token-input:focus { border-color: #58a6ff; }
+    #token-input::placeholder { color: #484f58; }
+
+    #apply-btn {
+      padding: 5px 14px;
+      background: #21262d;
+      color: #58a6ff;
+      border: 1px solid #388bfd40;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+
+    #apply-btn:hover { background: #2d333b; border-color: #58a6ff; }
+
+    #status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      white-space: nowrap;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .badge-none  { background: #21262d; color: #8b949e; }
+    .badge-set   { background: #1a3722; color: #3fb950; border: 1px solid #2ea043; }
+    .badge-clear { background: #3d1f1f; color: #f85149; border: 1px solid #da3633; }
+
+    #graphiql-container { flex: 1; overflow: hidden; }
+  </style>
+</head>
+<body>
+
+  <div id="topbar">
+    <h1>HHM <span>GraphQL</span></h1>
+
+    <div class="token-row">
+      <span class="token-label">JWT Token</span>
+      <input
+        id="token-input"
+        type="text"
+        placeholder="Paste your Bearer token here and press Enter or click Apply…"
+        spellcheck="false"
+        autocomplete="off"
+      />
+      <button id="apply-btn" onclick="applyToken()">Apply</button>
+    </div>
+
+    <span id="status-badge" class="badge-none">— no token</span>
+  </div>
+
+  <div id="graphiql-container"></div>
+
+  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/graphiql@3.7.1/graphiql.min.js"></script>
+
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────────
+    var currentToken = '';
+    var root = null;
+
+    // ── Token helpers ──────────────────────────────────────────────────────────
+    function setStatus(state) {
+      var badge = document.getElementById('status-badge');
+      if (state === 'set') {
+        badge.textContent = '✓ token active';
+        badge.className = 'badge-set';
+      } else if (state === 'cleared') {
+        badge.textContent = '✗ cleared';
+        badge.className = 'badge-clear';
+        setTimeout(function () {
+          badge.textContent = '— no token';
+          badge.className = 'badge-none';
+        }, 1500);
+      } else {
+        badge.textContent = '— no token';
+        badge.className = 'badge-none';
+      }
+    }
+
+    function applyToken() {
+      var raw = document.getElementById('token-input').value.trim();
+      // Strip "Bearer " prefix if pasted with it
+      currentToken = raw.replace(/^Bearer\s+/i, '');
+
+      if (currentToken) {
+        try { localStorage.setItem('hhm_graphql_jwt', currentToken); } catch (e) {}
+        setStatus('set');
+      } else {
+        try { localStorage.removeItem('hhm_graphql_jwt'); } catch (e) {}
+        setStatus('cleared');
+      }
+
+      renderGraphiQL();
+    }
+
+    // ── GraphQL fetcher (re-created on each applyToken so headers are fresh) ───
+    function makeFetcher() {
+      return async function (graphQLParams) {
+        var headers = { 'Content-Type': 'application/json' };
+        if (currentToken) {
+          headers['Authorization'] = 'Bearer ' + currentToken;
+        }
+        var response = await fetch('/graphql', {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(graphQLParams),
+        });
+        return response.json();
+      };
+    }
+
+    // ── Render / re-render GraphiQL ────────────────────────────────────────────
+    function renderGraphiQL() {
+      var el = React.createElement(GraphiQL, {
+        fetcher: makeFetcher(),
+        defaultEditorToolsVisibility: true,
+      });
+      if (root) {
+        root.render(el);
+      } else {
+        root = ReactDOM.createRoot(document.getElementById('graphiql-container'));
+        root.render(el);
+      }
+    }
+
+    // ── Keyboard shortcut: Enter in token input applies the token ───────────────
+    document.getElementById('token-input').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') applyToken();
+    });
+
+    // ── Restore saved token on load ────────────────────────────────────────────
+    try {
+      var saved = localStorage.getItem('hhm_graphql_jwt');
+      if (saved) {
+        currentToken = saved;
+        document.getElementById('token-input').value = saved;
+        setStatus('set');
+      }
+    } catch (e) {}
+
+    // ── Initial render ─────────────────────────────────────────────────────────
+    renderGraphiQL();
+  </script>
+</body>
+</html>

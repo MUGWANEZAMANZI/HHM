@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 
 import java.time.LocalDateTime;
@@ -28,6 +29,7 @@ public class FeedbackResolver {
         return feedbackService.getAll();
     }
 
+    @PreAuthorize("hasAuthority('RECEPTIONIST') or hasAuthority('PATIENT')")
     @MutationMapping
     public String submitFeedback(@Argument @Valid FeedbackRequest input) {
         feedbackService.submit(input.getPatientId(), input.getFeedback(),
@@ -35,6 +37,7 @@ public class FeedbackResolver {
         return "Feedback submitted successfully";
     }
 
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('NURSE') or hasAuthority('RECEPTIONIST')")
     @MutationMapping
     public boolean deleteFeedback(@Argument Long id) {
         feedbackService.remove(id);

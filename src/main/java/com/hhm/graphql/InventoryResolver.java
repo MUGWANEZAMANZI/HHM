@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 
 import java.util.List;
@@ -27,11 +28,13 @@ public class InventoryResolver {
         return inventoryService.getAll();
     }
 
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('NURSE') or hasAuthority('RECEPTIONIST')")
     @QueryMapping
     public List<MedicalInventory> lowStockItems() {
         return inventoryService.getLowStock();
     }
 
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('NURSE') or hasAuthority('RECEPTIONIST')")
     @MutationMapping
     public String addInventoryItem(@Argument @Valid InventoryRequest input) {
         MedicalInventory item = new MedicalInventory(
@@ -40,6 +43,7 @@ public class InventoryResolver {
         return "Inventory item added successfully";
     }
 
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('RECEPTIONIST')")
     @MutationMapping
     public boolean deleteInventoryItem(@Argument Long id) {
         inventoryService.remove(id);

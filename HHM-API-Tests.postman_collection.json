@@ -1,0 +1,861 @@
+{
+  "info": {
+    "name": "HHM API — Security & RBAC Tests",
+    "description": "Full RBAC test suite for the Hospital Health Management System.\n\nSetup:\n1. Start the app: mvn spring-boot:run -Dspring-boot.run.profiles=dev\n2. Import this collection into Postman.\n3. Run the 'Auth' folder first — it stores tokens as collection variables.\n4. Run other folders in any order.\n\nSeeded accounts (created on first boot):\n  Admin   : admin@hhm.rw   / admin123\n  Doctor  : doctor1@hhm.rw / doctor123\n  Nurse   : nurse1@hhm.rw  / nurse123\n  Patient : patient1@hhm.rw / patient123",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",          "value": "http://localhost:8080" },
+    { "key": "adminToken",       "value": "" },
+    { "key": "doctorToken",      "value": "" },
+    { "key": "nurseToken",       "value": "" },
+    { "key": "patientToken",     "value": "" },
+    { "key": "receptionistToken","value": "" }
+  ],
+  "item": [
+
+    {
+      "name": "1 — Auth",
+      "item": [
+
+        {
+          "name": "Login as Admin (saves adminToken)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('token present', () => pm.expect(json.token).to.be.a('string'));",
+            "pm.collectionVariables.set('adminToken', json.token);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@hhm.rw\",\n  \"password\": \"admin123\"\n}" }
+          }
+        },
+
+        {
+          "name": "Login as Doctor (saves doctorToken)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.collectionVariables.set('doctorToken', json.token);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"doctor1@hhm.rw\",\n  \"password\": \"doctor123\"\n}" }
+          }
+        },
+
+        {
+          "name": "Login as Nurse (saves nurseToken)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.collectionVariables.set('nurseToken', json.token);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"nurse1@hhm.rw\",\n  \"password\": \"nurse123\"\n}" }
+          }
+        },
+
+        {
+          "name": "Login as Patient (saves patientToken)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.collectionVariables.set('patientToken', json.token);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"patient1@hhm.rw\",\n  \"password\": \"patient123\"\n}" }
+          }
+        },
+
+        {
+          "name": "Register Patient — public (201)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201 — patient self-registration allowed', () => pm.response.to.have.status(201));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Test Patient\",\n  \"email\": \"testpatient99@hhm.rw\",\n  \"password\": \"pass1234\",\n  \"type\": \"PATIENT\",\n  \"phone\": \"0789999999\"\n}" }
+          }
+        },
+
+        {
+          "name": "Register ADMIN without auth — 403 (type blocked)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403 — non-PATIENT registration blocked', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Hacker Admin\",\n  \"email\": \"hacker@evil.com\",\n  \"password\": \"pass1234\",\n  \"type\": \"ADMIN\"\n}" }
+          }
+        },
+
+        {
+          "name": "Logout Admin (blacklists adminToken)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200 — logged out', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/v1/auth/logout"
+          }
+        },
+
+        {
+          "name": "Use blacklisted token — 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401 — blacklisted token rejected', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/v1/admin/users"
+          }
+        },
+
+        {
+          "name": "Re-login Admin (refresh adminToken)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.collectionVariables.set('adminToken', pm.response.json().token);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@hhm.rw\",\n  \"password\": \"admin123\"\n}" }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "2 — Doctors",
+      "item": [
+
+        {
+          "name": "List doctors — no token (401)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401 — unauthenticated', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/doctors"
+          }
+        },
+
+        {
+          "name": "List doctors — as Patient (200)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": "{{baseUrl}}/api/v1/doctors"
+          }
+        },
+
+        {
+          "name": "Create doctor — as Admin (201)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201 — admin can create doctor', () => pm.response.to.have.status(201));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/doctors",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Dr. Test\",\n  \"email\": \"drtest@hhm.rw\",\n  \"password\": \"pass1234\",\n  \"type\": \"DOCTOR\",\n  \"licenseNumber\": \"LIC-TEST-001\",\n  \"departmentId\": 1\n}" }
+          }
+        },
+
+        {
+          "name": "Create doctor — as Doctor (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403 — doctor cannot create doctors', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/doctors",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Dr. Evil\",\n  \"email\": \"drevil@hhm.rw\",\n  \"password\": \"pass1234\",\n  \"type\": \"DOCTOR\",\n  \"licenseNumber\": \"LIC-EVIL-001\",\n  \"departmentId\": 1\n}" }
+          }
+        },
+
+        {
+          "name": "Create doctor — no token (401)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401 — unauthenticated', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/doctors",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Dr. Ghost\",\n  \"email\": \"drghost@hhm.rw\",\n  \"password\": \"pass1234\",\n  \"type\": \"DOCTOR\",\n  \"licenseNumber\": \"LIC-GHOST-001\",\n  \"departmentId\": 1\n}" }
+          }
+        },
+
+        {
+          "name": "Update doctor (id=1) — as Admin (200)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/doctors/1",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Dr. Emmanuel Updated\",\n  \"licenseNumber\": \"LIC-CARD-001\",\n  \"departmentId\": 1\n}" }
+          }
+        },
+
+        {
+          "name": "Update doctor (id=1) — as different Doctor (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403 — cannot update another doctor', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/doctors/1",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Hacked Name\",\n  \"licenseNumber\": \"LIC-HACK\",\n  \"departmentId\": 1\n}" }
+          }
+        },
+
+        {
+          "name": "Delete doctor — as Admin (204)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/v1/doctors/11"
+          }
+        },
+
+        {
+          "name": "Delete doctor — as Doctor (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403 — doctor cannot delete', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": "{{baseUrl}}/api/v1/doctors/2"
+          }
+        },
+
+        {
+          "name": "Delete doctor — no token (401)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401 — unauthenticated', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/v1/doctors/2"
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "3 — Patients",
+      "item": [
+
+        {
+          "name": "List patients — no token (401)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/patients" }
+        },
+
+        {
+          "name": "List patients — as Admin (200)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/v1/patients"
+          }
+        },
+
+        {
+          "name": "Update patient (id=5) — as Admin (200)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/patients/5",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Updated Name\",\n  \"phone\": \"0788000005\",\n  \"email\": \"patient5@hhm.rw\",\n  \"district\": \"Gasabo\",\n  \"sector\": \"Remera\",\n  \"cell\": \"Rukiri\",\n  \"village\": \"Kabuye\"\n}" }
+          }
+        },
+
+        {
+          "name": "Update patient (id=5) — as Doctor (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/patients/5",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Hacked\",\n  \"phone\": \"0788000005\",\n  \"email\": \"patient5@hhm.rw\",\n  \"district\": \"Gasabo\",\n  \"sector\": \"Remera\",\n  \"cell\": \"Rukiri\",\n  \"village\": \"Kabuye\"\n}" }
+          }
+        },
+
+        {
+          "name": "Delete patient — as Admin (204)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/v1/patients/100"
+          }
+        },
+
+        {
+          "name": "Delete patient — as Patient (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": "{{baseUrl}}/api/v1/patients/2"
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "4 — Appointments",
+      "item": [
+
+        {
+          "name": "Book appointment — as Patient (201)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/appointments",
+            "body": { "mode": "raw", "raw": "{\n  \"patientId\": 1,\n  \"doctorId\": 2,\n  \"appointmentDate\": \"2027-12-01T10:00:00\"\n}" }
+          }
+        },
+
+        {
+          "name": "Book appointment — as Doctor (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403 — doctors cannot book', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/appointments",
+            "body": { "mode": "raw", "raw": "{\n  \"patientId\": 1,\n  \"doctorId\": 2,\n  \"appointmentDate\": \"2027-12-01T10:00:00\"\n}" }
+          }
+        },
+
+        {
+          "name": "Book appointment — as Admin (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403 — admin cannot book', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/appointments",
+            "body": { "mode": "raw", "raw": "{\n  \"patientId\": 1,\n  \"doctorId\": 2,\n  \"appointmentDate\": \"2027-12-01T10:00:00\"\n}" }
+          }
+        },
+
+        {
+          "name": "Book appointment — no token (401)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/appointments",
+            "body": { "mode": "raw", "raw": "{\n  \"patientId\": 1,\n  \"doctorId\": 2,\n  \"appointmentDate\": \"2027-12-01T10:00:00\"\n}" }
+          }
+        },
+
+        {
+          "name": "Cancel appointment (id=1) — as Admin (200)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/v1/appointments/1/cancel"
+          }
+        },
+
+        {
+          "name": "Cancel appointment — as Patient (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": "{{baseUrl}}/api/v1/appointments/2/cancel"
+          }
+        },
+
+        {
+          "name": "Delete appointment — as Admin (204)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/v1/appointments/150"
+          }
+        },
+
+        {
+          "name": "Delete appointment — as Patient (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": "{{baseUrl}}/api/v1/appointments/3"
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "5 — Feedback",
+      "item": [
+
+        {
+          "name": "List feedback — no token (401)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/feedback" }
+        },
+
+        {
+          "name": "List feedback — as Doctor (200)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": "{{baseUrl}}/api/v1/feedback"
+          }
+        },
+
+        {
+          "name": "Submit feedback — as Patient (201)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/feedback",
+            "body": { "mode": "raw", "raw": "{\n  \"patientId\": 1,\n  \"feedback\": \"Excellent service from the medical team\"\n}" }
+          }
+        },
+
+        {
+          "name": "Submit feedback — as Doctor (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403 — doctors cannot submit feedback', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/feedback",
+            "body": { "mode": "raw", "raw": "{\n  \"patientId\": 1,\n  \"feedback\": \"Doctor trying to submit feedback\"\n}" }
+          }
+        },
+
+        {
+          "name": "Submit feedback — as Admin (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403 — admin cannot submit feedback', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/feedback",
+            "body": { "mode": "raw", "raw": "{\n  \"patientId\": 1,\n  \"feedback\": \"Admin trying to submit feedback\"\n}" }
+          }
+        },
+
+        {
+          "name": "Delete feedback — as Admin (204)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/v1/feedback/1"
+          }
+        },
+
+        {
+          "name": "Delete feedback — as Nurse (204)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{nurseToken}}" }],
+            "url": "{{baseUrl}}/api/v1/feedback/2"
+          }
+        },
+
+        {
+          "name": "Delete feedback — as Doctor (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403 — doctor cannot delete feedback', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": "{{baseUrl}}/api/v1/feedback/3"
+          }
+        },
+
+        {
+          "name": "Delete feedback — as Patient (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": "{{baseUrl}}/api/v1/feedback/3"
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "6 — Inventory",
+      "item": [
+
+        {
+          "name": "List inventory — no token (401)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/inventory" }
+        },
+
+        {
+          "name": "List inventory — as Doctor (200)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": "{{baseUrl}}/api/v1/inventory"
+          }
+        },
+
+        {
+          "name": "Low-stock — as Admin (200)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/v1/inventory/low-stock"
+          }
+        },
+
+        {
+          "name": "Low-stock — as Nurse (200)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{nurseToken}}" }],
+            "url": "{{baseUrl}}/api/v1/inventory/low-stock"
+          }
+        },
+
+        {
+          "name": "Low-stock — as Patient (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403 — patients cannot see low-stock', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": "{{baseUrl}}/api/v1/inventory/low-stock"
+          }
+        },
+
+        {
+          "name": "Low-stock — as Doctor (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403 — doctors cannot see low-stock', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": "{{baseUrl}}/api/v1/inventory/low-stock"
+          }
+        },
+
+        {
+          "name": "Low-stock — no token (401)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/inventory/low-stock" }
+        },
+
+        {
+          "name": "Add inventory item — as Nurse (201)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{nurseToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/inventory",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Aspirin 100mg\",\n  \"sku\": \"MED-ASP-100\",\n  \"quantityOnHand\": 500,\n  \"reorderLevel\": 50\n}" }
+          }
+        },
+
+        {
+          "name": "Add inventory item — as Doctor (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/inventory",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Fake Drug\",\n  \"sku\": \"MED-FAKE\",\n  \"quantityOnHand\": 1,\n  \"reorderLevel\": 1\n}" }
+          }
+        },
+
+        {
+          "name": "Add inventory item — as Patient (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{patientToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/inventory",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Patient Drug\",\n  \"sku\": \"MED-PAT\",\n  \"quantityOnHand\": 1,\n  \"reorderLevel\": 1\n}" }
+          }
+        },
+
+        {
+          "name": "Delete inventory item — as Admin (204)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/v1/inventory/11"
+          }
+        },
+
+        {
+          "name": "Delete inventory item — as Nurse (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403 — nurses cannot delete inventory', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{nurseToken}}" }],
+            "url": "{{baseUrl}}/api/v1/inventory/1"
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "7 — Admin Endpoints",
+      "item": [
+
+        {
+          "name": "List all users — as Admin (200)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/v1/admin/users"
+          }
+        },
+
+        {
+          "name": "List all users — as Doctor (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{doctorToken}}" }],
+            "url": "{{baseUrl}}/api/v1/admin/users"
+          }
+        },
+
+        {
+          "name": "List all users — as Patient (403)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{patientToken}}" }],
+            "url": "{{baseUrl}}/api/v1/admin/users"
+          }
+        },
+
+        {
+          "name": "List all users — no token (401)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/admin/users" }
+        },
+
+        {
+          "name": "List pending Google users — as Admin (200)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/v1/admin/users/pending"
+          }
+        },
+
+        {
+          "name": "Create new Admin account — as Admin (201)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"New Admin\",\n  \"email\": \"admin2@hhm.rw\",\n  \"password\": \"admin1234\"\n}" }
+          }
+        },
+
+        {
+          "name": "Create new Admin account — no token (401)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/admin",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Hacker\",\n  \"email\": \"hacker@evil.com\",\n  \"password\": \"hack1234\"\n}" }
+          }
+        }
+
+      ]
+    }
+
+  ]
+}
