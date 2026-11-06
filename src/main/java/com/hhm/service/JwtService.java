@@ -83,4 +83,9 @@ public class JwtService {
         byte[] keyBytes = Decoders.BASE64.decode(JWT_SECRET);
         return Keys.hmacShaKeyFor(keyBytes);
     }
+
+    public String decodeToken(String token) {
+        Claims claims = extractAllClaims(token);
+        return claims.toString();
+    }
 }
