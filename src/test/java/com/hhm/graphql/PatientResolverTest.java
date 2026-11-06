@@ -5,12 +5,9 @@ import com.hhm.model.Patient;
 import com.hhm.service.PatientService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -23,6 +20,12 @@ class PatientResolverTest {
 
     @Mock PatientService patientService;
     @InjectMocks PatientResolver patientResolver;
+
+    private static Patient patient(String name) {
+        Patient p = new Patient(name, "0780000000");
+        p.setEmail(name.toLowerCase() + "@hhm.rw");
+        return p;
+    }
 
     // ─── patients query ──────────────────────────────────────────────────────
 
@@ -66,38 +69,52 @@ class PatientResolverTest {
     // ─── patientsPaged query ─────────────────────────────────────────────────
 
     @Test
-    void patientsPaged_nullParams_usesDefaultPageAndSize() {
-        given(patientService.getAll(any(Pageable.class))).willReturn(new PageImpl<>(List.of()));
-        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+    void patientsPaged_nullParams_usesDefaultPageZeroAndSizeTen() {
+        given(patientService.getAll()).willReturn(List.of());
 
-        patientResolver.patientsPaged(null, null);
+        var result = patientResolver.patientsPaged(null, null);
 
-        then(patientService).should().getAll(captor.capture());
-        assertThat(captor.getValue().getPageNumber()).isEqualTo(0);
-        assertThat(captor.getValue().getPageSize()).isEqualTo(10);
+        assertThat(result.getPageNumber()).isEqualTo(0);
+        assertThat(result.getPageSize()).isEqualTo(10);
+        then(patientService).should().getAll();
     }
 
     @Test
-    void patientsPaged_customParams_passesCorrectPageable() {
-        given(patientService.getAll(any(Pageable.class))).willReturn(new PageImpl<>(List.of()));
-        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+    void patientsPaged_customParams_slicesCorrectly() {
+        // 7 patients, page=1, size=3 → second page contains patients 4,5,6
+        List<Patient> all = List.of(
+            patient("P1"), patient("P2"), patient("P3"),
+            patient("P4"), patient("P5"), patient("P6"), patient("P7"));
+        given(patientService.getAll()).willReturn(all);
 
-        patientResolver.patientsPaged(2, 5);
+        var result = patientResolver.patientsPaged(1, 3);
 
-        then(patientService).should().getAll(captor.capture());
-        assertThat(captor.getValue().getPageNumber()).isEqualTo(2);
-        assertThat(captor.getValue().getPageSize()).isEqualTo(5);
+        assertThat(result.getPageNumber()).isEqualTo(1);
+        assertThat(result.getPageSize()).isEqualTo(3);
+        assertThat(result.getTotalElements()).isEqualTo(7);
+        assertThat(result.getTotalPages()).isEqualTo(3);
+        assertThat(result.getContent()).extracting(Patient::getName)
+            .containsExactly("P4", "P5", "P6");
     }
 
     @Test
     void patientsPaged_negativePageIndex_clampsToZero() {
-        given(patientService.getAll(any(Pageable.class))).willReturn(new PageImpl<>(List.of()));
-        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        given(patientService.getAll()).willReturn(List.of());
 
-        patientResolver.patientsPaged(-1, 5);
+        var result = patientResolver.patientsPaged(-1, 5);
 
-        then(patientService).should().getAll(captor.capture());
-        assertThat(captor.getValue().getPageNumber()).isEqualTo(0);
+        assertThat(result.getPageNumber()).isEqualTo(0);
+        assertThat(result.getPageSize()).isEqualTo(5);
+    }
+
+    @Test
+    void patientsPaged_pageOutOfBounds_returnsEmptyContent() {
+        given(patientService.getAll()).willReturn(List.of(patient("Only")));
+
+        var result = patientResolver.patientsPaged(5, 10);
+
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getTotalElements()).isEqualTo(1);
     }
 
     // ─── registerPatient mutation ─────────────────────────────────────────────
