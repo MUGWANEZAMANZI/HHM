@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
@@ -31,4 +32,10 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 
     Page<Appointment> findAll(Pageable pageable);
     Page<Appointment> findByPatient_Id(long patientId, Pageable pageable);
+
+
+    //Prevents double-booking of a doctor at the same date and time. Returns true if an active booking exists.
+    @Query("SELECT COUNT(a) > 0 FROM Appointment a " +
+            "WHERE a.doctor.id = :doctorId AND a.appointmentDate = :date AND a.status <> 'Cancelled' OR a.status <> 'Completed'")
+    boolean existsActiveBooking(@Param("doctorId") long doctorId, @Param("date") LocalDateTime date);
 }

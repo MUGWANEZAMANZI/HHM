@@ -7,6 +7,7 @@ import com.hhm.model.Patient;
 import com.hhm.repository.AppointmentRepository;
 import com.hhm.repository.DoctorRepository;
 import com.hhm.repository.PatientRepository;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 @Service
 public class AppointmentService {
@@ -21,13 +25,18 @@ public class AppointmentService {
     private final AppointmentRepository appointmentRepository;
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
+    private final Executor dbLookupExecutor;
+    private final ConcurrentHashMap<String, Boolean> inflightSlots = new ConcurrentHashMap<>();
+
 
     public AppointmentService(AppointmentRepository appointmentRepository,
                               DoctorRepository doctorRepository,
-                              PatientRepository patientRepository) {
+                              PatientRepository patientRepository,
+                              @Qualifier("dbLookupExecutor") Executor dbLookupExecutor) {
         this.appointmentRepository = appointmentRepository;
         this.doctorRepository = doctorRepository;
         this.patientRepository = patientRepository;
+        this.dbLookupExecutor = dbLookupExecutor;
     }
 
     @Transactional
@@ -35,13 +44,39 @@ public class AppointmentService {
     public void book(long patientId, long doctorId, LocalDateTime date, String status) throws ServiceException {
         if (date.isBefore(LocalDateTime.now()))
             throw new ServiceException("Appointment date cannot be in the past.");
-        Patient patient = patientRepository.findById(patientId)
-            .orElseThrow(() -> new ServiceException(ServiceException.Type.NOT_FOUND,
-                "Patient with id " + patientId + " not found."));
-        Doctor doctor = doctorRepository.findById(doctorId)
-            .orElseThrow(() -> new ServiceException(ServiceException.Type.NOT_FOUND,
-                "Doctor with id " + doctorId + " not found."));
-        appointmentRepository.save(new Appointment(patient, doctor, date, status));
+
+        String slot = doctorId + ":" + date;
+        if (inflightSlots.putIfAbsent(slot, Boolean.TRUE) != null)
+            throw new ServiceException(ServiceException.Type.CONFLICT,
+                    "A booking for this slot is already in progress.");
+
+
+        try {
+            if (appointmentRepository.existsActiveBooking(doctorId, date))
+                throw new ServiceException(ServiceException.Type.CONFLICT,
+                        "Doctor already has an appointment at this time.");
+            // Fetch patient and doctor in parallel — these are independent DB calls.
+            // Both run on dbLookupExecutor threads while the calling thread waits at join().
+            CompletableFuture<Patient> patientFuture = CompletableFuture.supplyAsync(
+                    () -> patientRepository.findById(patientId)
+                            .orElseThrow(() -> new ServiceException(ServiceException.Type.NOT_FOUND,
+                                    "Patient with id " + patientId + " not found.")),
+                    dbLookupExecutor
+            );
+            CompletableFuture<Doctor> doctorFuture = CompletableFuture.supplyAsync(
+                    () -> doctorRepository.findById(doctorId)
+                            .orElseThrow(() -> new ServiceException(ServiceException.Type.NOT_FOUND,
+                                    "Doctor with id " + doctorId + " not found.")),
+                    dbLookupExecutor
+            );
+
+            // Block until both lookups finish, then proceed with the save.
+            CompletableFuture.allOf(patientFuture, doctorFuture).join();
+            appointmentRepository.save(new Appointment(patientFuture.join(), doctorFuture.join(), date, status));
+        } finally {
+            inflightSlots.remove(slot);  // always release the slot after the transaction commits or rolls back
+        }
+
     }
 
     @Transactional
@@ -49,17 +84,29 @@ public class AppointmentService {
     public void reschedule(long id, long patientId, long doctorId, LocalDateTime date) throws ServiceException {
         if (date.isBefore(LocalDateTime.now()))
             throw new ServiceException("Rescheduled date cannot be in the past.");
+
+        // The existing appointment lookup must come first (sequential — we need it to exist).
         Appointment existing = appointmentRepository.findById(id)
             .orElseThrow(() -> new ServiceException(ServiceException.Type.NOT_FOUND,
                 "Appointment with id " + id + " not found."));
-        Patient patient = patientRepository.findById(patientId)
-            .orElseThrow(() -> new ServiceException(ServiceException.Type.NOT_FOUND,
-                "Patient with id " + patientId + " not found."));
-        Doctor doctor = doctorRepository.findById(doctorId)
-            .orElseThrow(() -> new ServiceException(ServiceException.Type.NOT_FOUND,
-                "Doctor with id " + doctorId + " not found."));
-        existing.setPatient(patient);
-        existing.setDoctor(doctor);
+
+        // Patient and doctor lookups are independent — run them in parallel.
+        CompletableFuture<Patient> patientFuture = CompletableFuture.supplyAsync(
+            () -> patientRepository.findById(patientId)
+                .orElseThrow(() -> new ServiceException(ServiceException.Type.NOT_FOUND,
+                    "Patient with id " + patientId + " not found.")),
+            dbLookupExecutor
+        );
+        CompletableFuture<Doctor> doctorFuture = CompletableFuture.supplyAsync(
+            () -> doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new ServiceException(ServiceException.Type.NOT_FOUND,
+                    "Doctor with id " + doctorId + " not found.")),
+            dbLookupExecutor
+        );
+
+        CompletableFuture.allOf(patientFuture, doctorFuture).join();
+        existing.setPatient(patientFuture.join());
+        existing.setDoctor(doctorFuture.join());
         existing.setAppointmentDate(date);
         existing.setStatus("Rescheduled");
         appointmentRepository.save(existing);
