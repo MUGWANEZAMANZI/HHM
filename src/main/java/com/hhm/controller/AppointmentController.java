@@ -79,11 +79,13 @@ public class AppointmentController {
     }
 
 
+    @PreAuthorize("hasAuthority('RECEPTIONIST') or hasAuthority('DOCTOR')")
     @PutMapping("/{id}")
     @Operation(summary = "Reschedule an appointment",
                description = "Updates date and/or doctor for an existing appointment.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Appointment rescheduled"),
+        @ApiResponse(responseCode = "403", description = "Only RECEPTIONIST or DOCTOR can reschedule"),
         @ApiResponse(responseCode = "404", description = "Appointment not found"),
         @ApiResponse(responseCode = "422", description = "New date is in the past or invalid")
     })

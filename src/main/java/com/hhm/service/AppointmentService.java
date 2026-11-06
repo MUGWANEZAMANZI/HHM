@@ -136,26 +136,28 @@ public class AppointmentService {
 
     // Single source of truth: a plain-POJO list with all JOIN data embedded.
     // AppointmentView has no Hibernate proxies, so Jackson can round-trip it safely.
+    // parallelStream(): mapToView is a pure function (no shared state, no I/O) — safe
+    // to execute across multiple threads. Speeds up the mapping step under large datasets.
     @Transactional(readOnly = true)
     @Cacheable("appointments")
     public List<AppointmentView> getAll() {
-        return appointmentRepository.findAllWithDetails().stream()
+        return appointmentRepository.findAllWithDetails().parallelStream()
             .map(this::mapToView)
             .collect(java.util.stream.Collectors.toList());
     }
 
-    // In-memory filter on the already-cached list — no DB call, no separate cache entry.
-    // Returns AppointmentView (not Appointment) so LAZY fields are never involved.
+    // parallelStream(): filters an in-memory cached list — no DB call.
+    // Safe because AppointmentView is immutable after construction.
     public List<AppointmentView> findByStatus(String status) {
-        return getAll().stream()
+        return getAll().parallelStream()
             .filter(v -> status.equalsIgnoreCase(v.getStatus()))
             .toList();
     }
 
-    // In-memory search on the cached list across patient name, doctor name, and status.
+    // parallelStream(): same rationale — pure predicate, immutable source, no side effects.
     public List<AppointmentView> search(String keyword) {
         String lower = keyword.toLowerCase();
-        return getAll().stream()
+        return getAll().parallelStream()
             .filter(v -> contains(v.getPatientName(), lower)
                       || contains(v.getDoctorName(),  lower)
                       || contains(v.getStatus(),       lower))

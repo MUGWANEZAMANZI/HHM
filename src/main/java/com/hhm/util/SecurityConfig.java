@@ -82,6 +82,7 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers("/api/v1/cors-demo").permitAll()
                 .requestMatchers("/", "/login", "/logout", "/error", "/access-denied").permitAll()
                 .requestMatchers("/graphiql", "/graphql/**").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
@@ -106,13 +107,17 @@ public class SecurityConfig {
 
     /**
      * Global CORS policy.
-     * Dev: all origins allowed so Postman, Swagger UI, and local frontends work.
-     * Production: replace allowedOrigins with your deployed frontend domain(s).
+     * Restricted to known local dev origins — not wildcard.
+     * Production: replace with your deployed frontend domain(s).
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedOriginPatterns(List.of(
+                "http://localhost:3000",   // React / Create React App
+                "http://localhost:4200",   // Angular CLI
+                "http://localhost:5173"    // Vite / Vue
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         config.setExposedHeaders(List.of("Authorization"));

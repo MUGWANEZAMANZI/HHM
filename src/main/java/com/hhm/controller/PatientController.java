@@ -71,6 +71,7 @@ public class PatientController {
         return ResponseEntity.ok(ApiResult.success(msg, page));
     }
 
+    @PreAuthorize("hasAuthority('RECEPTIONIST') or hasAuthority('NURSE')")
     @PostMapping("/admit")
     @Operation(
         summary     = "Admit a patient (transactional demo)",
@@ -91,6 +92,7 @@ public class PatientController {
                 .body(ApiResult.created("Patient admitted with id " + id + " — appointment booked", null));
     }
 
+    @PreAuthorize("hasAuthority('RECEPTIONIST') or hasAuthority('NURSE')")
     @PostMapping
     @Operation(
         summary     = "Register a new patient",
@@ -98,6 +100,7 @@ public class PatientController {
     )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Patient registered successfully"),
+        @ApiResponse(responseCode = "403", description = "Only RECEPTIONIST or NURSE can register patients"),
         @ApiResponse(responseCode = "409", description = "Email already in use"),
         @ApiResponse(responseCode = "422", description = "Validation failed — see message field")
     })
