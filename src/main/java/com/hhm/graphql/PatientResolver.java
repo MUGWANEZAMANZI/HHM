@@ -53,7 +53,7 @@ public class PatientResolver {
 
     @PreAuthorize("hasAuthority('ADMIN')")
     @MutationMapping
-    public String registerPatient(@Argument @Valid PatientRequest input) {
+    public String registerPatient(@Argument @Valid PatientRequest input) throws InterruptedException {
         long newId = patientService.register(
                 input.getName(), input.getPhone(), input.getEmail(),
                 input.getAddress(), input.getDistrict(), input.getSector(),

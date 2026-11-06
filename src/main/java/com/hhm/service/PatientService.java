@@ -1,5 +1,7 @@
 package com.hhm.service;
 
+import com.hhm.dto.Type;
+import com.hhm.event.UserRegisteredEvent;
 import com.hhm.model.Patient;
 import com.hhm.model.PatientAddress;
 import com.hhm.repository.PatientAddressRepository;
@@ -7,6 +9,7 @@ import com.hhm.repository.PatientRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,11 +22,14 @@ public class PatientService {
 
     private final PatientRepository patientRepository;
     private final PatientAddressRepository addressRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public PatientService(PatientRepository patientRepository,
-                          PatientAddressRepository addressRepository) {
+                          PatientAddressRepository addressRepository,
+                          ApplicationEventPublisher eventPublisher) {
         this.patientRepository = patientRepository;
         this.addressRepository = addressRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -47,6 +53,8 @@ public class PatientService {
 
         if (district != null && !district.isBlank())
             addressRepository.save(new PatientAddress(saved, district, sector, cell, village));
+        //Publish event to all listeners
+        eventPublisher.publishEvent(new UserRegisteredEvent(email, name, Type.PATIENT));
 
         return saved.getId();
     }

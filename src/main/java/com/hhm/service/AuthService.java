@@ -3,8 +3,10 @@ package com.hhm.service;
 import com.hhm.dto.AssignRoleRequest;
 import com.hhm.dto.RegisterRequest;
 import com.hhm.dto.Type;
+import com.hhm.event.UserRegisteredEvent;
 import com.hhm.model.User;
 import com.hhm.repository.UserRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,19 +19,24 @@ public class AuthService {
     private final UserRepository userRepository;
     private final UserFactory userFactory;
     private final PasswordEncoder passwordEncoder;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AuthService(UserRepository userRepository,
                        UserFactory userFactory,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       ApplicationEventPublisher eventPublisher) {
         this.userRepository = userRepository;
         this.userFactory = userFactory;
         this.passwordEncoder = passwordEncoder;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
     public User createUser(RegisterRequest request) {
         User user = userFactory.create(request);
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        eventPublisher.publishEvent(new UserRegisteredEvent(saved.getEmail(), request.getName(), request.getType()));
+        return saved;
     }
 
     /**
