@@ -2,7 +2,7 @@ package com.hhm.controller;
 
 import com.hhm.dto.ApiResult;
 import com.hhm.dto.AppointmentRequest;
-import com.hhm.model.Appointment;
+import com.hhm.model.AppointmentView;
 import com.hhm.service.AppointmentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -41,21 +41,23 @@ public class AppointmentController {
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Appointments returned successfully")
     })
-    public ResponseEntity<ApiResult<Page<Appointment>>> getAllAppointments(
+    public ResponseEntity<ApiResult<Page<AppointmentView>>> getAllAppointments(
             @Parameter(description = "Filter by status: Scheduled | Completed | Cancelled | Rescheduled")
             @RequestParam(required = false) String status,
             @ParameterObject @PageableDefault(size = 20, sort = "appointmentDate") Pageable pageable) {
 
-        if (status != null && !status.isBlank()) {
-            List<Appointment> results = appointmentService.findByStatus(status);
-            Page<Appointment> page = new PageImpl<>(results, pageable, results.size());
-            return ResponseEntity.ok(ApiResult.success(
-                results.size() + " appointment(s) with status: " + status, page));
-        }
+        List<AppointmentView> source = (status != null && !status.isBlank())
+            ? appointmentService.findByStatus(status)
+            : appointmentService.getAll();
 
-        Page<Appointment> page = appointmentService.getAll(pageable);
-        String msg = String.format("Page %d — %d of %d appointments",
-            pageable.getPageNumber(), page.getNumberOfElements(), page.getTotalElements());
+        int start   = (int) pageable.getOffset();
+        int end     = Math.min(start + pageable.getPageSize(), source.size());
+        List<AppointmentView> content = start >= source.size() ? List.of() : source.subList(start, end);
+        Page<AppointmentView> page = new PageImpl<>(content, pageable, source.size());
+        String msg = status != null && !status.isBlank()
+            ? source.size() + " appointment(s) with status: " + status
+            : String.format("Page %d — %d of %d appointments",
+                pageable.getPageNumber(), page.getNumberOfElements(), page.getTotalElements());
         return ResponseEntity.ok(ApiResult.success(msg, page));
     }
 

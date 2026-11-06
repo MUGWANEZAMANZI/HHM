@@ -125,6 +125,14 @@
     </dependency>
 
 
+    <!-- Adding redis  -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+
+
+
     <!-- GraphQL test client -->
     <dependency>
       <groupId>org.springframework.graphql</groupId>

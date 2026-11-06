@@ -9,6 +9,7 @@ import lombok.ToString;
 @Table(name = "patient", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"phone"}, name = "uk_patient_phone")
 })
+
 public class Patient extends User{
     @Column(nullable = false)
     private String name;

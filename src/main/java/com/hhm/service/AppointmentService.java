@@ -9,8 +9,6 @@ import com.hhm.repository.DoctorRepository;
 import com.hhm.repository.PatientRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -89,32 +87,36 @@ public class AppointmentService {
         appointmentRepository.deleteById(appointmentId);
     }
 
-    @Transactional(readOnly = true)
-    public Page<Appointment> getAll(Pageable pageable) {
-        return appointmentRepository.findAll(pageable);
-    }
-
+    // Single source of truth: a plain-POJO list with all JOIN data embedded.
+    // AppointmentView has no Hibernate proxies, so Jackson can round-trip it safely.
     @Transactional(readOnly = true)
     @Cacheable("appointments")
     public List<AppointmentView> getAll() {
         return appointmentRepository.findAllWithDetails().stream()
             .map(this::mapToView)
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    // In-memory filter on the already-cached list — no DB call, no separate cache entry.
+    // Returns AppointmentView (not Appointment) so LAZY fields are never involved.
+    public List<AppointmentView> findByStatus(String status) {
+        return getAll().stream()
+            .filter(v -> status.equalsIgnoreCase(v.getStatus()))
             .toList();
     }
 
-    @Transactional(readOnly = true)
-    @Cacheable(value = "appointments", key = "#status")
-    public List<Appointment> findByStatus(String status) {
-        return appointmentRepository.findByStatus(status);
-    }
-
-    @Transactional(readOnly = true)
-    @Cacheable(value = "appointments", key = "#keyword")
-    public List<Appointment> search(String keyword) {
+    // In-memory search on the cached list across patient name, doctor name, and status.
+    public List<AppointmentView> search(String keyword) {
         String lower = keyword.toLowerCase();
-        return appointmentRepository.findAll().stream()
-            .filter(a -> a.getStatus().toLowerCase().contains(lower))
+        return getAll().stream()
+            .filter(v -> contains(v.getPatientName(), lower)
+                      || contains(v.getDoctorName(),  lower)
+                      || contains(v.getStatus(),       lower))
             .toList();
+    }
+
+    private static boolean contains(String field, String lower) {
+        return field != null && field.toLowerCase().contains(lower);
     }
 
     private AppointmentView mapToView(Object[] row) {

@@ -32,13 +32,16 @@ public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final OAuth2UserSaveService customOAuth2UserService;
 
     public SecurityConfig(UserService userService,
                           JwtAuthenticationFilter jwtAuthFilter,
+                          RateLimitFilter rateLimitFilter,
                           OAuth2UserSaveService customOAuth2UserService) {
         this.userDetailsService = userService;
         this.jwtAuthFilter = jwtAuthFilter;
+        this.rateLimitFilter = rateLimitFilter;
         this.customOAuth2UserService = customOAuth2UserService;
     }
 
@@ -75,6 +78,7 @@ public class SecurityConfig {
                     }
                 })
             )
+            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**").permitAll()

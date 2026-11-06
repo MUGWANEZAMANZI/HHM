@@ -1,7 +1,7 @@
 package com.hhm.util;
 
-import com.hhm.service.BlackListService;
 import com.hhm.service.JwtService;
+import com.hhm.service.RedisSecurityService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,14 +22,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
-    private final BlackListService blackListService;
+    private final RedisSecurityService redisSecurityService;
 
     public JwtAuthenticationFilter(JwtService jwtService,
                                    UserDetailsService userDetailsService,
-                                   BlackListService blackListService) {
+                                   RedisSecurityService redisSecurityService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
-        this.blackListService = blackListService;
+        this.redisSecurityService = redisSecurityService;
     }
 
     @Override
@@ -48,18 +48,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         final String jwt = authHeader.substring(7);
 
-        if (blackListService.isBlackListed(jwt)) {
+        final String jti;
+        try {
+            jti = jwtService.extractJti(jwt);
+        } catch (Exception e) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        if (redisSecurityService.isTokenBlacklisted(jti)) {
             filterChain.doFilter(request, response);
             return;
         }
 
         final String email;
-
         try {
             email = jwtService.extractUsername(jwt);
         } catch (Exception e) {
-            // Malformed or expired token — let the request continue unauthenticated;
-            // Spring Security will return 401/403 as configured.
             filterChain.doFilter(request, response);
             return;
         }

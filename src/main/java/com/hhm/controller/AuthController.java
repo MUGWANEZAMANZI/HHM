@@ -7,8 +7,8 @@ import com.hhm.dto.RegisterRequest;
 import com.hhm.dto.Type;
 import com.hhm.model.User;
 import com.hhm.service.AuthService;
-import com.hhm.service.BlackListService;
 import com.hhm.service.JwtService;
+import com.hhm.service.RedisSecurityService;
 import com.hhm.service.UserService;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.time.Duration;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -36,7 +37,7 @@ public class AuthController {
     private final JwtService jwtService;
     private final UserService userService;
     private final AuthService authService;
-    private final BlackListService blackListService;
+    private final RedisSecurityService redisSecurityService;
 
     public AuthController(
             AuthenticationManager authenticationManager,
@@ -44,13 +45,13 @@ public class AuthController {
             JwtService jwtService,
             UserService userService,
             AuthService authService,
-            BlackListService blackListService) {
+            RedisSecurityService redisSecurityService) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtService = jwtService;
         this.userService = userService;
         this.authService = authService;
-        this.blackListService = blackListService;
+        this.redisSecurityService = redisSecurityService;
     }
 
     @PostMapping("/login")
@@ -79,7 +80,11 @@ public class AuthController {
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String jwt = authHeader.substring(7);
-            blackListService.addToBlackList(jwt, jwtService.extractExpiration(jwt));
+            String jti = jwtService.extractJti(jwt);
+            long remainingMillis = jwtService.extractExpiration(jwt).getTime() - System.currentTimeMillis();
+            if (remainingMillis > 0) {
+                redisSecurityService.blacklistToken(jti, Duration.ofMillis(remainingMillis));
+            }
         }
         return ResponseEntity.ok(ApiResult.success("Logged out successfully", null));
     }

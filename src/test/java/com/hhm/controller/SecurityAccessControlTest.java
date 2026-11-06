@@ -6,6 +6,7 @@ import com.hhm.model.User;
 import com.hhm.repository.AdminRepository;
 import com.hhm.repository.UserRepository;
 import com.hhm.service.*;
+import com.hhm.util.RateLimitFilter;
 import com.hhm.util.SecurityConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -72,7 +73,7 @@ class SecurityAccessControlTest {
     // These satisfy the constructor/filter dependencies that SecurityConfig pulls in.
     @MockitoBean UserService userService;
     @MockitoBean JwtService jwtService;
-    @MockitoBean BlackListService blackListService;
+    @MockitoBean RedisSecurityService redisSecurityService;
     // SecurityConfig takes OAuth2UserSaveService as a constructor arg — must be present.
     @MockitoBean OAuth2UserSaveService oAuth2UserSaveService;
     // oauth2Login() DSL requires ClientRegistrationRepository to be in the context.
@@ -88,7 +89,7 @@ class SecurityAccessControlTest {
         when(doctorService.findById(anyLong())).thenReturn(stubDoctor);
 
         // Patients
-        when(patientService.getAll(any())).thenReturn(Page.empty());
+        when(patientService.getAll()).thenReturn(List.of());
         when(patientService.search(anyString())).thenReturn(List.of());
 
         // Admin
