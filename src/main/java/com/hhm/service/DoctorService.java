@@ -36,9 +36,9 @@ public class DoctorService {
             throw new ServiceException(ServiceException.Type.NOT_FOUND,
                 "Department with id " + req.getDepartmentId() + " does not exist.");
 
-        boolean licenseTaken = doctorRepository.findAll().stream()
-            .anyMatch(d -> d.getLicenseNumber().equalsIgnoreCase(req.getLicenseNumber()));
-        if (licenseTaken)
+        // existsByLicenseNumberIgnoreCase → single COUNT query — O(1) with index,
+        // replacing the previous findAll().stream().anyMatch() full table scan.
+        if (doctorRepository.existsByLicenseNumberIgnoreCase(req.getLicenseNumber()))
             throw new ServiceException(ServiceException.Type.CONFLICT,
                 "License number \"" + req.getLicenseNumber() + "\" is already registered.");
 
@@ -84,11 +84,9 @@ public class DoctorService {
     @Transactional(readOnly = true)
     @Cacheable(value = "doctors", key = "#keyword")
     public List<Doctor> search(String keyword) {
-        String lower = keyword.toLowerCase();
-        return doctorRepository.findAll().stream()
-            .filter(d -> d.getName().toLowerCase().contains(lower)
-                      || d.getLicenseNumber().toLowerCase().contains(lower))
-            .toList();
+        // DB-level LIKE filter — only matching rows are transferred over the wire.
+        // Replaces the previous findAll() + in-memory stream scan (O(n) full load).
+        return doctorRepository.search(keyword);
     }
 
     @Transactional

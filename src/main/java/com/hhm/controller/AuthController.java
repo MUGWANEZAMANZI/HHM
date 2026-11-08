@@ -9,6 +9,7 @@ import com.hhm.model.User;
 import com.hhm.service.AuthService;
 import com.hhm.service.JwtService;
 import com.hhm.service.RedisSecurityService;
+import com.hhm.service.SecurityEventService;
 import com.hhm.service.UserService;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -18,6 +19,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.Duration;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -38,6 +40,7 @@ public class AuthController {
     private final UserService userService;
     private final AuthService authService;
     private final RedisSecurityService redisSecurityService;
+    private final SecurityEventService securityEventService;
 
     public AuthController(
             AuthenticationManager authenticationManager,
@@ -45,33 +48,36 @@ public class AuthController {
             JwtService jwtService,
             UserService userService,
             AuthService authService,
-            RedisSecurityService redisSecurityService) {
+            RedisSecurityService redisSecurityService,
+            SecurityEventService securityEventService) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtService = jwtService;
         this.userService = userService;
         this.authService = authService;
         this.redisSecurityService = redisSecurityService;
+        this.securityEventService = securityEventService;
     }
 
     @PostMapping("/login")
     public LoginResponse login(
             @Parameter(description = "User login request containing username and password")
             @RequestBody LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.email(),
-                        request.password()
-                )
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.email(),
+                            request.password()
+                    )
+            );
+        } catch (AuthenticationException e) {
+            securityEventService.recordLoginFailure(request.email());
+            throw e;
+        }
+        securityEventService.recordLoginSuccess(request.email());
         UserDetails userDetails = userDetailsService.loadUserByUsername(request.email());
-
-        // 3. Generate JWT token
         String jwtToken = jwtService.generateToken(userDetails);
-
-        // 4. Return token in response
         return ResponseEntity.ok(new LoginResponse(jwtToken, 36000L)).getBody();
-
     }
 
     @PostMapping("/logout")

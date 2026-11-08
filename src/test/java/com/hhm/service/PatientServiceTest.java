@@ -10,6 +10,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -165,13 +169,14 @@ class PatientServiceTest {
 
     @Test
     void getAll_returnsList() {
-        given(patientRepository.findAll()).willReturn(
-            List.of(patient("Alice", "0780000001", "alice@hhm.rw")));
+        Patient alice = patient("Alice", "0780000001", "alice@hhm.rw");
+        given(patientRepository.findAll(any(Pageable.class)))
+            .willReturn(new PageImpl<>(List.of(alice)));
 
-        List<Patient> result = patientService.getAll();
+        Page<Patient> result = patientService.getAll(Pageable.unpaged());
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getName()).isEqualTo("Alice");
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).getName()).isEqualTo("Alice");
     }
 
     @Test
