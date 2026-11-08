@@ -89,7 +89,7 @@ class SecurityAccessControlTest {
         when(doctorService.findById(anyLong())).thenReturn(stubDoctor);
 
         // Patients
-        when(patientService.getAll()).thenReturn(List.of());
+        when(patientService.getAll(any())).thenReturn(Page.empty());
         when(patientService.search(anyString())).thenReturn(List.of());
 
         // Admin
@@ -98,7 +98,7 @@ class SecurityAccessControlTest {
         when(adminRepository.findAll()).thenReturn(List.of());
 
         // Appointments
-        when(appointmentService.getAll(any())).thenReturn(Page.empty());
+        when(appointmentService.getAll()).thenReturn(List.of());
         when(appointmentService.findByStatus(anyString())).thenReturn(List.of());
 
         // Feedback

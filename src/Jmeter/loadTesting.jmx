@@ -1,0 +1,643 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan"
+              testname="HHM V — VisualVM Hotspot Profiling Plan" enabled="true">
+      <stringProp name="TestPlan.comments">
+        Five targeted thread groups, each isolating a specific bottleneck class/method.
+        Run with VisualVM CPU Profiler active to see hotspot methods clearly.
+        Groups run sequentially — watch VisualVM between each phase.
+      </stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <!-- Sequential: one group at a time so each phase is visible in VisualVM -->
+      <boolProp name="TestPlan.serialize_threadgroups">true</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments"
+                   guiclass="ArgumentsPanel" testclass="Arguments" enabled="true">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           GLOBAL: HTTP Request Defaults (all groups use localhost:8080)
+           ══════════════════════════════════════════════════════════════ -->
+      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement"
+                         testname="HTTP Request Defaults" enabled="true">
+        <elementProp name="HTTPsampler.Arguments" elementType="Arguments"
+                     guiclass="HTTPArgumentsPanel" testclass="Arguments" enabled="true">
+          <collectionProp name="Arguments.arguments"/>
+        </elementProp>
+        <stringProp name="HTTPSampler.domain">localhost</stringProp>
+        <stringProp name="HTTPSampler.port">8080</stringProp>
+        <stringProp name="HTTPSampler.protocol">http</stringProp>
+        <intProp name="HTTPSampler.connect_timeout">5000</intProp>
+        <intProp name="HTTPSampler.response_timeout">30000</intProp>
+      </ConfigTestElement>
+      <hashTree/>
+
+      <!-- GLOBAL: JSON Content-Type header -->
+      <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
+                     testname="Content-Type: application/json" enabled="true">
+        <collectionProp name="HeaderManager.headers">
+          <elementProp name="" elementType="Header">
+            <stringProp name="Header.name">Content-Type</stringProp>
+            <stringProp name="Header.value">application/json</stringProp>
+          </elementProp>
+        </collectionProp>
+      </HeaderManager>
+      <hashTree/>
+
+
+      <!-- ══════════════════════════════════════════════════════════════════
+           GROUP 1 — BCrypt & JWT CPU Stress  (50 users × 15 loops = 750 logins)
+           VisualVM target: BCrypt.checkpw(), JwtService.generateToken()
+           HOW TO SEE: VisualVM → Profiler tab → CPU → Start
+                       Watch org.springframework.security.crypto.bcrypt.*
+                       and com.hhm.service.JwtService in the hot-methods table
+           ══════════════════════════════════════════════════════════════════ -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup"
+                   testname="1. BCrypt + JWT CPU Stress (50 users)" enabled="true">
+        <stringProp name="TestPlan.comments">
+          LOGIN ONLY — isolates BCrypt.checkpw() (60-100ms CPU each) and
+          HMAC-SHA256 JWT signing. Each login = 1 BCrypt verify + 1 JWT sign + 2 Redis writes.
+          VisualVM CPU profiler will show BCrypt and JwtService dominating self-time.
+        </stringProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController"
+                     guiclass="LoopControlPanel" testclass="LoopController" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">15</stringProp>
+        </elementProp>
+        <intProp name="ThreadGroup.num_threads">50</intProp>
+        <intProp name="ThreadGroup.ramp_time">10</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">false</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <!-- POST Login — BCrypt CPU spike -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="POST Login [BCrypt+JWT]" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{"email":"admin@hhm.rw","password":"admin123"}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.path">/api/v1/auth/login</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor"
+                             testname="JWT Extractor" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">jwt_token</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.token</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">0</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">TOKEN_NOT_FOUND</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+        </hashTree>
+      </hashTree>
+
+
+      <!-- ══════════════════════════════════════════════════════════════════
+           GROUP 2 — Memory Pressure: Bulk Table Fetches (100 users × 5 loops)
+           VisualVM target: Heap growth, GC spikes, AppointmentService.getAll(),
+                            parallelStream() ForkJoinPool, Hibernate object inflation
+           HOW TO SEE: VisualVM → Monitor tab → watch Heap chart climb steeply.
+                       Profiler → Memory → "Live objects" — look for
+                       AppointmentView, PatientView, PrescriptionView large counts.
+                       Profiler → CPU — look for ForkJoinPool.commonPool-worker threads
+                       and AppointmentService.mapToView() high self-time.
+           ══════════════════════════════════════════════════════════════════ -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup"
+                   testname="2. Memory Pressure — Bulk Fetches (100 users)" enabled="true">
+        <stringProp name="TestPlan.comments">
+          Hits 6 full-table endpoints per iteration. Appointments uses a 4-table native JOIN
+          + parallelStream mapping (ForkJoinPool). Prescriptions, Feedback, Inventory, Admin/Users
+          all load every row via findAll(). Creates sustained heap pressure and GC activity.
+        </stringProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController"
+                     guiclass="LoopControlPanel" testclass="LoopController" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">5</stringProp>
+        </elementProp>
+        <intProp name="ThreadGroup.num_threads">100</intProp>
+        <intProp name="ThreadGroup.ramp_time">20</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <!-- Login + extract token -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="POST Login" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{"email":"admin@hhm.rw","password":"admin123"}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.path">/api/v1/auth/login</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor"
+                             testname="JWT Extractor" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">jwt_token</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.token</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">0</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">TOKEN_NOT_FOUND</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <!-- Auth header for all requests in this group -->
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
+                       testname="Authorization Bearer" enabled="true">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Authorization</stringProp>
+              <stringProp name="Header.value">Bearer ${jwt_token}</stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+
+        <!-- HEAVY: 4-table JOIN + parallelStream — biggest heap consumer -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /appointments [4-table JOIN + parallelStream]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/appointments</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- HEAVY: findAll() — full prescriptions table in heap -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /prescriptions [full findAll()]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/prescriptions</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- HEAVY: findAll() — full feedback table -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /feedback [full findAll()]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/feedback</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- HEAVY: findAll() — full inventory table -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /inventory [full findAll()]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/inventory</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- HEAVY: findAll() across user type hierarchy -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /admin/users [user hierarchy findAll()]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/admin/users</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- HEAVY: findAll() — patients table -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /patients [full table]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/patients</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+      </hashTree>
+
+
+      <!-- ══════════════════════════════════════════════════════════════════
+           GROUP 3 — Redis Hammer: Analysis Report N+1 (30 users × 25 loops)
+           VisualVM target: SecurityEventService.buildReport(),
+                            RedisTemplate.execute(), Redis KEYS O(N) scans
+           HOW TO SEE: VisualVM → Profiler → CPU → Start
+                       Look for com.hhm.service.SecurityEventService.buildReport()
+                       and org.springframework.data.redis.* taking high self-time.
+                       Monitor tab: thread count stays elevated — blocked on Redis I/O.
+           ══════════════════════════════════════════════════════════════════ -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup"
+                   testname="3. Redis Hammer — Analysis Report (30 users)" enabled="true">
+        <stringProp name="TestPlan.comments">
+          Hammers GET /api/v1/analysis/report repeatedly.
+          Each call: 2x Redis KEYS O(N) scans + N individual Redis GET calls in a loop (N+1 problem).
+          SecurityEventService.buildReport() will be a clear hotspot in VisualVM CPU profiler.
+        </stringProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController"
+                     guiclass="LoopControlPanel" testclass="LoopController" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">25</stringProp>
+        </elementProp>
+        <intProp name="ThreadGroup.num_threads">30</intProp>
+        <intProp name="ThreadGroup.ramp_time">5</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <!-- Login once per user -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="POST Login" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{"email":"admin@hhm.rw","password":"admin123"}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.path">/api/v1/auth/login</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor"
+                             testname="JWT Extractor" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">jwt_token</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.token</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">0</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">TOKEN_NOT_FOUND</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
+                       testname="Authorization Bearer" enabled="true">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Authorization</stringProp>
+              <stringProp name="Header.value">Bearer ${jwt_token}</stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+
+        <!-- Redis KEYS O(N) + N+1 GET — repeated 25 times per user -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /analysis/report [Redis KEYS O(N) + N+1 GETs]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/analysis/report</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- Also hit the analysis decode endpoint -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /analysis [JWT decode]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/analysis</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+      </hashTree>
+
+
+      <!-- ══════════════════════════════════════════════════════════════════
+           GROUP 4 — AOP Cross-Cutting Overhead (150 users × 4 loops)
+           VisualVM target: LoggingAop.logAfterReturningController(),
+                            SecurityTrackingAop.trackEndpointAccess(),
+                            JwtAuthenticationFilter.doFilterInternal()
+           HOW TO SEE: VisualVM → Profiler → CPU — look for
+                       com.hhm.aop.LoggingAop (toString on every response)
+                       com.hhm.aop.SecurityTrackingAop (Redis increment per call)
+                       com.hhm.util.JwtAuthenticationFilter (2x HMAC per request)
+                       These fire on EVERY request so they accumulate fast.
+           ══════════════════════════════════════════════════════════════════ -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup"
+                   testname="4. AOP + JwtFilter Overhead (150 users)" enabled="true">
+        <stringProp name="TestPlan.comments">
+          Rapid-fires all GET endpoints to surface AOP and JwtFilter overhead.
+          LoggingAop.logAfterReturning() serializes entire response body on every call.
+          SecurityTrackingAop makes a synchronous Redis increment on every controller method.
+          JwtAuthenticationFilter does 2x HMAC-SHA256 verifications per request.
+          With 150 users hitting 7 endpoints each, these cross-cutting costs accumulate visibly.
+        </stringProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController"
+                     guiclass="LoopControlPanel" testclass="LoopController" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">4</stringProp>
+        </elementProp>
+        <intProp name="ThreadGroup.num_threads">150</intProp>
+        <intProp name="ThreadGroup.ramp_time">20</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="POST Login" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{"email":"admin@hhm.rw","password":"admin123"}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.path">/api/v1/auth/login</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor"
+                             testname="JWT Extractor" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">jwt_token</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.token</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">0</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">TOKEN_NOT_FOUND</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
+                       testname="Authorization Bearer" enabled="true">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Authorization</stringProp>
+              <stringProp name="Header.value">Bearer ${jwt_token}</stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+
+        <!-- 7 endpoints — AOP fires on each one (LoggingAop + SecurityTrackingAop) -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /patients [AOP: toString full list]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/patients</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /doctors [AOP: toString full list]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/doctors</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /appointments [AOP + parallelStream]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/appointments</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /prescriptions [AOP sequential DB]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/prescriptions</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /feedback [AOP toString]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/feedback</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /departments [cached]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/departments</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET /analysis/report [Redis N+1]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/analysis/report</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+      </hashTree>
+
+
+      <!-- ══════════════════════════════════════════════════════════════════
+           GROUP 5 — Peak Concurrency: 1000 users mixed load
+           VisualVM target: thread pool saturation (dbLookupExecutor),
+                            overall system ceiling, GC pauses
+           HOW TO SEE: VisualVM → Monitor tab:
+                       - Thread count climbs to 50+ (pool max)
+                       - CPU hits 60-100%
+                       - Heap shows sawtooth GC pattern (rise → GC drop → rise)
+                       Threads tab: many threads in WAIT (pool queue blocked)
+           ══════════════════════════════════════════════════════════════════ -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup"
+                   testname="5. Peak Concurrency — 1000 Users Mixed" enabled="true">
+        <stringProp name="TestPlan.comments">
+          Matches the 1000.jmx intent. All heavy endpoints under peak load.
+          Thread pool (core 10, max 50, queue 100) will saturate.
+          Watch VisualVM Threads tab for threads in WAIT state (queued).
+          Heap will show GC sawtooth. CPU should sustain 60-100%.
+        </stringProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController"
+                     guiclass="LoopControlPanel" testclass="LoopController" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">1</stringProp>
+        </elementProp>
+        <intProp name="ThreadGroup.num_threads">1000</intProp>
+        <intProp name="ThreadGroup.ramp_time">120</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">false</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="POST Login" enabled="true">
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{"email":"admin@hhm.rw","password":"admin123"}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.path">/api/v1/auth/login</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor"
+                             testname="JWT Extractor" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">jwt_token</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.token</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers">0</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">TOKEN_NOT_FOUND</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+        </hashTree>
+
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
+                       testname="Authorization Bearer" enabled="true">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Authorization</stringProp>
+              <stringProp name="Header.value">Bearer ${jwt_token}</stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET All Patients" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/patients</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET Patient by ID" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/patients/1</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET All Doctors" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/doctors</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET All Appointments" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/appointments</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET Prescriptions" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/prescriptions</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                          testname="GET Analysis Report" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/analysis/report</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+      </hashTree>
+
+
+      <!-- ══════════════════════════════════════════════════════════════
+           LISTENERS — disabled for CLI, enable in GUI for debugging only
+           ══════════════════════════════════════════════════════════════ -->
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector"
+                       testname="View Results Tree (GUI debug only)" enabled="false">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time><latency>true</latency><timestamp>true</timestamp>
+            <success>true</success><label>true</label><code>true</code>
+            <message>true</message><threadName>true</threadName>
+            <dataType>true</dataType><encoding>false</encoding>
+            <assertions>true</assertions><subresults>true</subresults>
+            <responseData>false</responseData><samplerData>false</samplerData>
+            <xml>false</xml><fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders><requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <bytes>true</bytes><sentBytes>true</sentBytes><url>true</url>
+            <threadCounts>true</threadCounts><idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector"
+                       testname="Summary Report (GUI debug only)" enabled="false">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time><latency>true</latency><timestamp>true</timestamp>
+            <success>true</success><label>true</label><code>true</code>
+            <message>true</message><threadName>true</threadName>
+            <dataType>true</dataType><encoding>false</encoding>
+            <assertions>true</assertions><subresults>true</subresults>
+            <responseData>false</responseData><samplerData>false</samplerData>
+            <xml>false</xml><fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders><requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <bytes>true</bytes><sentBytes>true</sentBytes><url>true</url>
+            <threadCounts>true</threadCounts><idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

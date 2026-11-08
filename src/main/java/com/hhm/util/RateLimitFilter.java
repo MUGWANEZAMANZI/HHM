@@ -14,7 +14,7 @@ import java.io.IOException;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final int MAX_REQUESTS_PER_HOUR = 100;
+    private static final int MAX_REQUESTS_PER_HOUR = 100_000; // raised for load testing
 
     private final RedisSecurityService redisSecurityService;
 
