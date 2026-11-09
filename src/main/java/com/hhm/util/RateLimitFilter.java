@@ -14,7 +14,7 @@ import java.io.IOException;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final int MAX_REQUESTS_PER_HOUR = 100_000; // raised for load testing
+    private static final int MAX_REQUESTS_PER_HOUR = 1_000_000; // load-test ceiling (~4.2 hrs at 65 req/s)
 
     private final RedisSecurityService redisSecurityService;
 
@@ -29,6 +29,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         String ip = getClientIp(request);
+
+        // Localhost is exempt — load tests from 127.0.0.1 / ::1 bypass the rate limiter
+        if ("127.0.0.1".equals(ip) || "0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         if (redisSecurityService.isRateLimited(ip, MAX_REQUESTS_PER_HOUR)) {
             response.setStatus(429);

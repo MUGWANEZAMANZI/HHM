@@ -12,8 +12,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.hhm.model.Department;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -40,7 +42,7 @@ class DoctorServiceTest {
     @Test
     void register_success_savesDoctor() {
         given(departmentRepository.existsById(1L)).willReturn(true);
-        given(doctorRepository.findAll()).willReturn(List.of());
+        given(departmentRepository.findById(1L)).willReturn(Optional.of(new Department()));
 
         doctorService.register(req("Dr. Alice", 1L, "LIC-001"));
 
@@ -60,8 +62,7 @@ class DoctorServiceTest {
     @Test
     void register_duplicateLicense_throwsConflict() {
         given(departmentRepository.existsById(1L)).willReturn(true);
-        given(doctorRepository.findAll()).willReturn(
-            List.of(new Doctor("Dr. Other", new com.hhm.model.Department(), "LIC-001")));
+        given(doctorRepository.existsByLicenseNumberIgnoreCase("LIC-001")).willReturn(true);
 
         assertThatThrownBy(() -> doctorService.register(req("Dr. Alice", 1L, "LIC-001")))
             .isInstanceOf(ServiceException.class)
@@ -73,8 +74,7 @@ class DoctorServiceTest {
     @Test
     void register_licenseCheckIsCaseInsensitive() {
         given(departmentRepository.existsById(1L)).willReturn(true);
-        given(doctorRepository.findAll()).willReturn(
-            List.of(new Doctor("Dr. Other", new com.hhm.model.Department(), "lic-001")));
+        given(doctorRepository.existsByLicenseNumberIgnoreCase("LIC-001")).willReturn(true);
 
         assertThatThrownBy(() -> doctorService.register(req("Dr. Alice", 1L, "LIC-001")))
             .isInstanceOf(ServiceException.class)

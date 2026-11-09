@@ -1,10 +1,12 @@
 package com.hhm.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.ToString;
 
 @Entity
 @ToString
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @DiscriminatorValue("PATIENT")
 @Table(name = "patient", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"phone"}, name = "uk_patient_phone")

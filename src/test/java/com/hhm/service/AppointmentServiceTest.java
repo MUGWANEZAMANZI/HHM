@@ -1,11 +1,15 @@
 package com.hhm.service;
 
 import com.hhm.model.Appointment;
+import com.hhm.model.Doctor;
+import com.hhm.model.Patient;
 import com.hhm.repository.AppointmentRepository;
+import com.hhm.repository.DoctorRepository;
+import com.hhm.repository.PatientRepository;
 import static org.mockito.ArgumentMatchers.any;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -19,13 +23,25 @@ import static org.mockito.BDDMockito.*;
 class AppointmentServiceTest {
 
     @Mock AppointmentRepository appointmentRepository;
-    @InjectMocks AppointmentService appointmentService;
+    @Mock DoctorRepository doctorRepository;
+    @Mock PatientRepository patientRepository;
+    AppointmentService appointmentService;
+
+    @BeforeEach
+    void setUp() {
+        appointmentService = new AppointmentService(
+                appointmentRepository, doctorRepository, patientRepository, Runnable::run);
+    }
 
     // ─── book ────────────────────────────────────────────────────────────────
 
     @Test
     void book_futureDate_savesAppointment() {
         LocalDateTime future = LocalDateTime.now().plusDays(1);
+        given(patientRepository.findById(1L))
+                .willReturn(Optional.of(new Patient("Alice", "078")));
+        given(doctorRepository.findById(2L))
+                .willReturn(Optional.of(new Doctor("Dr. Bob", new com.hhm.model.Department(), "LIC")));
 
         appointmentService.book(1L, 2L, future, "Scheduled");
 
@@ -105,7 +121,12 @@ class AppointmentServiceTest {
     @Test
     void reschedule_futureDate_saves() {
         LocalDateTime future = LocalDateTime.now().plusDays(2);
-        given(appointmentRepository.existsById(1L)).willReturn(true);
+        Appointment existing = new Appointment();
+        given(appointmentRepository.findById(1L)).willReturn(Optional.of(existing));
+        given(patientRepository.findById(1L))
+                .willReturn(Optional.of(new Patient("Alice", "078")));
+        given(doctorRepository.findById(2L))
+                .willReturn(Optional.of(new Doctor("Dr. Bob", new com.hhm.model.Department(), "LIC")));
 
         appointmentService.reschedule(1L, 1L, 2L, future);
 

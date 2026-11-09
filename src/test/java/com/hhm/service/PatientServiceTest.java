@@ -9,6 +9,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -26,6 +27,7 @@ class PatientServiceTest {
 
     @Mock PatientRepository patientRepository;
     @Mock PatientAddressRepository addressRepository;
+    @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks PatientService patientService;
 
     private static Patient patient(String name, String phone, String email) {
