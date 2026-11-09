@@ -36,13 +36,18 @@
       </ConfigTestElement>
       <hashTree/>
 
-      <!-- GLOBAL: JSON Content-Type header -->
+      <!-- GLOBAL: JSON Content-Type + spoofed per-thread IP so each virtual user
+           gets its own rate-limit counter (RateLimitFilter reads X-Forwarded-For first) -->
       <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager"
-                     testname="Content-Type: application/json" enabled="true">
+                     testname="Content-Type + X-Forwarded-For" enabled="true">
         <collectionProp name="HeaderManager.headers">
           <elementProp name="" elementType="Header">
             <stringProp name="Header.name">Content-Type</stringProp>
             <stringProp name="Header.value">application/json</stringProp>
+          </elementProp>
+          <elementProp name="" elementType="Header">
+            <stringProp name="Header.name">X-Forwarded-For</stringProp>
+            <stringProp name="Header.value">10.0.${__threadNum}.1</stringProp>
           </elementProp>
         </collectionProp>
       </HeaderManager>
@@ -313,9 +318,20 @@
         </HTTPSamplerProxy>
         <hashTree/>
 
-        <!-- Also hit the analysis decode endpoint -->
+        <!-- Decode the JWT extracted from login — passes jwt_token as ?token= query param -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
                           testname="GET /analysis [JWT decode]" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments"
+                       guiclass="HTTPArgumentsPanel" testclass="Arguments" enabled="true">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.name">token</stringProp>
+                <stringProp name="Argument.value">${jwt_token}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
           <stringProp name="HTTPSampler.path">/api/v1/analysis</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
           <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
@@ -539,8 +555,8 @@
         <hashTree/>
 
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
-                          testname="GET Patient by ID" enabled="true">
-          <stringProp name="HTTPSampler.path">/api/v1/patients/1</stringProp>
+                          testname="GET All Patients [G5]" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/v1/patients</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
           <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
           <boolProp name="HTTPSampler.use_keepalive">true</boolProp>

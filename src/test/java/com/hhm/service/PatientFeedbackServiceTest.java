@@ -1,5 +1,6 @@
 package com.hhm.service;
 
+import com.hhm.model.Patient;
 import com.hhm.model.PatientFeedback;
 import com.hhm.repository.PatientFeedbackRepository;
 import com.hhm.repository.PatientRepository;
@@ -11,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -27,7 +29,7 @@ class PatientFeedbackServiceTest {
 
     @Test
     void submit_success_savesFeedback() {
-        given(patientRepository.existsById(1L)).willReturn(true);
+        given(patientRepository.findById(1L)).willReturn(Optional.of(new Patient("Alice", "078")));
 
         feedbackService.submit(1L, "Great service", null, LocalDateTime.now());
 
@@ -50,8 +52,6 @@ class PatientFeedbackServiceTest {
 
     @Test
     void submit_patientNotFound_throws() {
-        given(patientRepository.existsById(99L)).willReturn(false);
-
         assertThatThrownBy(() -> feedbackService.submit(99L, "Great service", null, LocalDateTime.now()))
             .isInstanceOf(ServiceException.class)
             .extracting(e -> ((ServiceException) e).getType())
