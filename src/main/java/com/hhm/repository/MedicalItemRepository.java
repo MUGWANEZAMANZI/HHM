@@ -7,13 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 public interface MedicalItemRepository extends JpaRepository<MedicalItem, Long> {
-
-    // Derived queries
-    List<MedicalItem> findByInventory_Id(long inventoryId);
-    List<MedicalItem> findByCategory(String category);
 
     // JPQL — bulk delete child items before removing parent inventory row
     @Modifying

@@ -57,9 +57,4 @@ public class PatientFeedbackService {
         return feedbackRepository.findByFeedbackContainingIgnoreCase(keyword);
     }
 
-    @Transactional(readOnly = true)
-    @Cacheable(value = "feedback", key = "#patientId")
-    public List<PatientFeedback> getByPatient(long patientId) {
-        return feedbackRepository.findByPatient_Id(patientId);
-    }
 }

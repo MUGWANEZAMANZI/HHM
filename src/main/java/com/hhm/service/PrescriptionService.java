@@ -91,9 +91,4 @@ public class PrescriptionService {
         return prescriptionRepository.findAll();
     }
 
-    @Transactional(readOnly = true)
-    @Cacheable(value = "prescriptions", key = "#patientId")
-    public List<Prescription> getByPatient(long patientId) {
-        return prescriptionRepository.findByPatient_Id(patientId);
-    }
 }

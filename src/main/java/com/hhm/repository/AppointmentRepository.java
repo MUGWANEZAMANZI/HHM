@@ -13,7 +13,6 @@ import java.util.List;
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
     List<Appointment> findByDoctor_Id(long doctorId);
-    List<Appointment> findByStatus(String status);
 
     @Query("SELECT a FROM Appointment a WHERE a.status = :status ORDER BY a.appointmentDate DESC")
     List<Appointment> findByStatusSorted(@Param("status") String status);
@@ -31,7 +30,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     List<Object[]> findAllWithDetails();
 
     Page<Appointment> findAll(Pageable pageable);
-    Page<Appointment> findByPatient_Id(long patientId, Pageable pageable);
 
 
     //Prevents double-booking of a doctor at the same date and time. Returns true if an active booking exists.

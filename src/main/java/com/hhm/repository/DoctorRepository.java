@@ -11,10 +11,6 @@ import java.util.List;
 
 public interface DoctorRepository extends JpaRepository<Doctor, Long> {
 
-    // Derived queries
-    List<Doctor> findByDepartmentId(long departmentId);
-    List<Doctor> findByNameContainingIgnoreCase(String name);
-    List<Doctor> findByLicenseNumber(String licenseNumber);
     boolean existsByLicenseNumberIgnoreCase(String licenseNumber);
 
     // DB-level keyword search across name and license number — avoids loading all rows.

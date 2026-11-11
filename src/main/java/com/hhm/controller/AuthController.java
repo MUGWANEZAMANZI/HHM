@@ -37,7 +37,6 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
     private final JwtService jwtService;
-    private final UserService userService;
     private final AuthService authService;
     private final RedisSecurityService redisSecurityService;
     private final SecurityEventService securityEventService;
@@ -46,14 +45,12 @@ public class AuthController {
             AuthenticationManager authenticationManager,
             UserDetailsService userDetailsService,
             JwtService jwtService,
-            UserService userService,
             AuthService authService,
             RedisSecurityService redisSecurityService,
             SecurityEventService securityEventService) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtService = jwtService;
-        this.userService = userService;
         this.authService = authService;
         this.redisSecurityService = redisSecurityService;
         this.securityEventService = securityEventService;
